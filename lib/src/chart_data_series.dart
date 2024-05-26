@@ -11,11 +11,15 @@ class ChartDataSeries extends ChartElement {
   final List<ChartData> data;
   final Color color;
   final LineType lineType;
+  final double? nodeRadius;
+  final double strokeWidth;
 
   ChartDataSeries({
     required this.data,
     required this.color,
+    this.strokeWidth = 2.0,
     this.lineType = LineType.straight,
+    this.nodeRadius,
   });
 
   ChartDataSeries animateTo(
@@ -51,16 +55,18 @@ class ChartDataSeries extends ChartElement {
 
     Paint linePaint = Paint()
       ..color = color
-      ..strokeWidth = 2.0
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    Paint pointPaint = Paint()
+    Paint nodePaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
     Path path = Path();
-    bool first = true;
 
+    bool first = true;
     if (lineType == LineType.straight) {
       for (var point in data) {
         double x = transform.transformX(point.x);
@@ -73,7 +79,7 @@ class ChartDataSeries extends ChartElement {
           path.lineTo(x, y);
         }
 
-        canvas.drawCircle(Offset(x, y), 4.0, pointPaint);
+        _drawNode(canvas, nodePaint, Offset(x, y));
       }
     } else if (lineType == LineType.bezier) {
       if (data.isNotEmpty) {
@@ -94,15 +100,16 @@ class ChartDataSeries extends ChartElement {
           path.cubicTo(controlPointX1, controlPointY1, controlPointX2,
               controlPointY2, x2, y2);
 
-          canvas.drawCircle(Offset(x1, y1), 4.0, pointPaint);
+          _drawNode(canvas, nodePaint, Offset(x1, y1));
         }
-        canvas.drawCircle(
-            Offset(transform.transformX(data.last.x),
-                transform.transformY(data.last.y)),
-            4.0,
-            pointPaint);
       }
     }
     canvas.drawPath(path, linePaint);
+  }
+
+  void _drawNode(Canvas canvas, Paint paint, Offset offset) {
+    if (nodeRadius == null) return;
+
+    canvas.drawCircle(offset, nodeRadius!, paint);
   }
 }

@@ -309,6 +309,7 @@ class _CustomLineChartState extends State<CustomLineChart>
   }
 }
 
+// TODO: Fade in and out point highlights
 class _LineChartPainter extends CustomPainter {
   final List<ChartElement> elements;
   final ChartDataTransform transform;
@@ -337,7 +338,15 @@ class _LineChartPainter extends CustomPainter {
         Paint highlightPaint = Paint()
           ..color = color
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(point, 6.0, highlightPaint);
+        canvas.drawCircle(point, 4.0, highlightPaint);
+
+        Paint borderPaint = Paint()
+          // TODO: Make configurable and/or get from theme
+          ..color = Colors.black87
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+
+        canvas.drawCircle(point, 5.0, borderPaint);
       }
     }
   }

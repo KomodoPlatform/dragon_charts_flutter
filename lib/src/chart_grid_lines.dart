@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'chart_element.dart';
 import 'chart_data_transform.dart';
@@ -10,7 +9,12 @@ class ChartGridLines extends ChartElement {
   ChartGridLines({required this.isVertical, required this.count});
 
   @override
-  void paint(Canvas canvas, Size size, ChartDataTransform transform, double animation) {
+  void paint(
+    Canvas canvas,
+    Size size,
+    ChartDataTransform transform,
+    double animation,
+  ) {
     Paint gridPaint = Paint()
       ..color = Colors.grey.withOpacity(0.2)
       ..strokeWidth = 1.0;
