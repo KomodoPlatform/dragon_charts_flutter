@@ -20,31 +20,97 @@ class GraphExtent {
   const GraphExtent.tight() : this(auto: true, padding: 0.0);
 }
 
-class CustomLineChart extends StatefulWidget {
+/// A customizable and animated line chart widget for Flutter.
+///
+/// The [LineChart] class allows you to plot multiple data series with options
+/// for custom tooltips and smooth animations when data points are added or
+/// removed.
+///
+/// Example usage:
+/// ```dart
+/// LineChart(
+///   elements: [
+///     ChartGridLines(isVertical: false, count: 5),
+///     ChartAxisLabels(
+///       isVertical: true,
+///       count: 5,
+///       labelBuilder: (value) => value.toStringAsFixed(2),
+///     ),
+///     ChartAxisLabels(
+///       isVertical: false,
+///       count: 5,
+///       labelBuilder: (value) => value.toStringAsFixed(2),
+///     ),
+///     ChartDataSeries(
+///       data: [ChartData(x: 1.0, y: 2.0)],
+///       color: Colors.blue,
+///     ),
+///     ChartDataSeries(
+///       data: [ChartData(x: 1.0, y: 4.0)],
+///       color: Colors.red,
+///       lineType: LineType.bezier,
+///     ),
+///   ],
+///   tooltipBuilder: (context, dataPoints) {
+///     return CustomTooltip(dataPoints: dataPoints);
+///   },
+///   backgroundColor: Colors.white,
+/// )
+/// ```
+class LineChart extends StatefulWidget {
+  /// The list of elements to be rendered in the chart.
+  ///
+  /// This list typically includes instances of [ChartDataSeries],
+  /// [ChartGridLines], and [ChartAxisLabels].
   final List<ChartElement> elements;
+
+  /// The duration of the animation when the chart updates.
+  ///
+  /// The default value is 500 milliseconds.
   final Duration animationDuration;
-  final Widget Function(BuildContext, List<ChartData>) tooltipBuilder;
+
+  /// A builder function to create custom tooltips for data points.
+  ///
+  /// If not provided, a default tooltip will be used.
+  final Widget Function(BuildContext, List<ChartData>)? tooltipBuilder;
+
+  /// The extent of the domain (x-axis) of the chart.
+  ///
+  /// This can be used to control the automatic scaling and padding of the domain.
   final GraphExtent domainExtent;
+
+  /// The extent of the range (y-axis) of the chart.
+  ///
+  /// This can be used to control the automatic scaling and padding of the range.
   final GraphExtent rangeExtent;
+
+  /// The background color of the chart.
+  ///
+  /// The default value is black.
   final Color backgroundColor;
 
-  const CustomLineChart({
-    super.key,
+  /// Creates a [LineChart] widget.
+  ///
+  /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
+  /// [domainExtent], [rangeExtent], and [backgroundColor] have default values.
+  const LineChart({
+    Key? key,
     required this.elements,
-    required this.tooltipBuilder,
+    this.tooltipBuilder,
     this.animationDuration = const Duration(milliseconds: 500),
     this.domainExtent = const GraphExtent(auto: true, padding: 0.1),
     this.rangeExtent = const GraphExtent(auto: true, padding: 0.1),
     this.backgroundColor = Colors.black,
-  });
+  }) : super(key: key);
 
   @override
-  _CustomLineChartState createState() => _CustomLineChartState();
+  _LineChartState createState() => _LineChartState();
 }
 
-class _CustomLineChartState extends State<CustomLineChart>
+class _LineChartState extends State<LineChart>
     with SingleTickerProviderStateMixin {
   OverlayEntry? _tooltipOverlay;
+  // ignore: unused_field
   Offset? _hoverPosition;
   List<Offset>? _highlightedPoints;
   List<Color> _highlightedColors = [];
@@ -87,7 +153,7 @@ class _CustomLineChartState extends State<CustomLineChart>
   }
 
   @override
-  void didUpdateWidget(covariant CustomLineChart oldWidget) {
+  void didUpdateWidget(covariant LineChart oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.elements != widget.elements) {
       setState(() {
@@ -190,7 +256,9 @@ class _CustomLineChartState extends State<CustomLineChart>
             top: top,
             child: Material(
               color: Colors.transparent,
-              child: widget.tooltipBuilder(context, dataPoints),
+              child: widget.tooltipBuilder != null
+                  ? widget.tooltipBuilder!(context, dataPoints)
+                  : _defaultTooltip(context, dataPoints),
             ),
           ),
         );
@@ -205,6 +273,32 @@ class _CustomLineChartState extends State<CustomLineChart>
       _tooltipOverlay!.remove();
       _tooltipOverlay = null;
     }
+  }
+
+  Widget _defaultTooltip(BuildContext context, List<ChartData> dataPoints) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: dataPoints.map((data) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              const Icon(Icons.circle, color: Colors.white, size: 8),
+              const SizedBox(width: 4),
+              Text(
+                '(${data.x}, ${data.y})',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
   }
 
   @override

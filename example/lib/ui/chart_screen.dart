@@ -15,7 +15,7 @@ class ChartScreen extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         child: BlocBuilder<ChartBloc, ChartState>(
           builder: (context, state) {
-            return CustomLineChart(
+            return LineChart(
               domainExtent: const GraphExtent.tight(),
               backgroundColor: Theme.of(context).cardColor,
               elements: [
@@ -34,10 +34,10 @@ class ChartScreen extends StatelessWidget {
                     color: Colors.red,
                     lineType: LineType.bezier),
               ],
-              tooltipBuilder: (context, dataPoints) {
-                return ChartTooltip(
-                    dataPoints: dataPoints, backgroundColor: Colors.pink);
-              },
+              // tooltipBuilder: (context, dataPoints) {
+              //   return ChartTooltip(
+              //       dataPoints: dataPoints, backgroundColor: Colors);
+              // },
             );
           },
         ),

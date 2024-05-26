@@ -3,12 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
 void main() {
-  group('CustomLineChart', () {
-    testWidgets('should render CustomLineChart with elements',
+  group('LineChart', () {
+    testWidgets('should render LineChart with elements',
         (WidgetTester tester) async {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-          body: CustomLineChart(
+          body: LineChart(
             domainExtent: const GraphExtent.tight(),
             elements: [
               ChartGridLines(isVertical: false, count: 5),
@@ -32,17 +32,17 @@ void main() {
                 lineType: LineType.bezier,
               ),
             ],
-            tooltipBuilder: (context, dataPoints) {
-              return ChartTooltip(
-                dataPoints: dataPoints,
-                backgroundColor: Colors.black,
-              );
-            },
+            // tooltipBuilder: (context, dataPoints) {
+            //   return ChartTooltip(
+            //     dataPoints: dataPoints,
+            //     backgroundColor: Colors.black,
+            //   );
+            // },
           ),
         ),
       ));
 
-      expect(find.byType(CustomLineChart), findsOneWidget);
+      expect(find.byType(LineChart), findsOneWidget);
     });
   });
 }

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'chart_data.dart';
 
@@ -7,10 +6,10 @@ class ChartTooltip extends StatelessWidget {
   final Color backgroundColor;
 
   const ChartTooltip({
-    super.key,
+    Key? key,
     required this.dataPoints,
-    this.backgroundColor = Colors.black,
-  });
+    required this.backgroundColor,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +25,12 @@ class ChartTooltip extends StatelessWidget {
           return Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              const Icon(Icons.circle, color: Colors.white),
+              const Icon(Icons.circle, color: Colors.white, size: 12),
+              const SizedBox(width: 4),
               Text(
-                '(${data.x}, ${data.y})',
+                '(${data.x.toStringAsFixed(2)}, ${data.y.toStringAsFixed(2)})',
                 style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
-              const SizedBox(height: 36),
             ],
           );
         }).toList(),
