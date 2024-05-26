@@ -5,16 +5,22 @@ import 'chart_event.dart';
 import 'chart_state.dart';
 import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
+// For the purpose of simplifying this example, we are generating the data in
+// the bloc class. However, in a real-world scenario, the data should be
+// fetched from a repository class. See https://bloclibrary.dev/why-bloc/
 class ChartBloc extends Bloc<ChartEvent, ChartState> {
   ChartBloc() : super(ChartState.initial()) {
     on<ChartUpdated>(_onChartUpdated);
-    on<ChartDataPointAdded>(_onChartDataPointAdded);
+    on<ChartDataPointCountChanged>(_onChartDataPointAdded);
 
     // Timer to periodically update chart data
     Timer.periodic(const Duration(seconds: 2), (timer) {
       add(ChartUpdated());
       if (Random().nextBool()) {
-        add(ChartDataPointAdded());
+        add(ChartDataPointCountChanged(
+
+            // Randomly add or remove 2 to 5 data points
+            (Random().nextInt(10) + 5) * (Random().nextBool() ? 1 : -1)));
       }
     });
   }
@@ -31,11 +37,26 @@ class ChartBloc extends Bloc<ChartEvent, ChartState> {
   }
 
   Future<void> _onChartDataPointAdded(
-      ChartDataPointAdded event, Emitter<ChartState> emit) async {
-    final newData1 = List<ChartData>.from(state.data1)
-      ..add(ChartData(x: state.data1.last.x + 1, y: Random().nextDouble()));
-    final newData2 = List<ChartData>.from(state.data2)
-      ..add(ChartData(x: state.data2.last.x + 1, y: Random().nextDouble()));
-    emit(state.copyWith(data1: newData1, data2: newData2));
+      ChartDataPointCountChanged event, Emitter<ChartState> emit) async {
+    final updatedData1 = List<ChartData>.from(state.data1);
+    final updatedData2 = List<ChartData>.from(state.data2);
+
+    if (event.count > 0) {
+      for (int i = 0; i < event.count; i++) {
+        updatedData1.add(ChartData(
+            x: updatedData1.length.toDouble(), y: Random().nextDouble()));
+        updatedData2.add(ChartData(
+            x: updatedData2.length.toDouble(), y: Random().nextDouble()));
+      }
+    } else {
+      final count = (updatedData1.length + event.count)
+          .clamp(0, double.maxFinite)
+          .toInt();
+
+      updatedData1.removeRange(count, updatedData1.length);
+      updatedData2.removeRange(count, updatedData2.length);
+    }
+
+    emit(state.copyWith(data1: updatedData1, data2: updatedData2));
   }
 }

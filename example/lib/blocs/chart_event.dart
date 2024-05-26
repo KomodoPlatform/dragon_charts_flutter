@@ -9,4 +9,8 @@ abstract class ChartEvent extends Equatable {
 
 class ChartUpdated extends ChartEvent {}
 
-class ChartDataPointAdded extends ChartEvent {}
+class ChartDataPointCountChanged extends ChartEvent {
+  const ChartDataPointCountChanged(this.count);
+
+  final int count;
+}

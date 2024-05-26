@@ -45,7 +45,6 @@ class CustomLineChart extends StatefulWidget {
 class _CustomLineChartState extends State<CustomLineChart>
     with SingleTickerProviderStateMixin {
   OverlayEntry? _tooltipOverlay;
-  // ignore: unused_field
   Offset? _hoverPosition;
   List<Offset>? _highlightedPoints;
   List<Color> _highlightedColors = [];
@@ -121,7 +120,6 @@ class _CustomLineChartState extends State<CustomLineChart>
       }
     }
 
-    // TODO: Address the underlying issue instead of using a fallback
     if (newMinX == double.infinity ||
         newMaxX == double.negativeInfinity ||
         newMinY == double.infinity ||
@@ -309,7 +307,6 @@ class _CustomLineChartState extends State<CustomLineChart>
   }
 }
 
-// TODO: Fade in and out point highlights
 class _LineChartPainter extends CustomPainter {
   final List<ChartElement> elements;
   final ChartDataTransform transform;

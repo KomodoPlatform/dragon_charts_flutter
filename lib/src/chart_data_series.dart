@@ -25,15 +25,17 @@ class ChartDataSeries extends ChartElement {
   ChartDataSeries animateTo(
       ChartDataSeries newDataSeries, double animationValue) {
     List<ChartData> interpolatedData = [];
+    int minLength = min(data.length, newDataSeries.data.length);
+    int maxLength = max(data.length, newDataSeries.data.length);
 
-    for (int i = 0; i < min(data.length, newDataSeries.data.length); i++) {
-      double oldY = data[i].y;
-      double newY = newDataSeries.data[i].y;
-      double interpolatedY = oldY + (newY - oldY) * animationValue;
-
+    for (int i = 0; i < minLength; i++) {
       double oldX = data[i].x;
       double newX = newDataSeries.data[i].x;
       double interpolatedX = oldX + (newX - oldX) * animationValue;
+
+      double oldY = data[i].y;
+      double newY = newDataSeries.data[i].y;
+      double interpolatedY = oldY + (newY - oldY) * animationValue;
 
       interpolatedData.add(ChartData(
         x: interpolatedX,
@@ -41,10 +43,26 @@ class ChartDataSeries extends ChartElement {
       ));
     }
 
+    for (int i = minLength; i < maxLength; i++) {
+      if (data.length > newDataSeries.data.length) {
+        interpolatedData.add(ChartData(
+          x: data[i].x,
+          y: data[i].y * (1 - animationValue),
+        ));
+      } else {
+        interpolatedData.add(ChartData(
+          x: newDataSeries.data[i].x,
+          y: newDataSeries.data[i].y * animationValue,
+        ));
+      }
+    }
+
     return ChartDataSeries(
       data: interpolatedData,
       color: color,
+      strokeWidth: strokeWidth,
       lineType: lineType,
+      nodeRadius: nodeRadius,
     );
   }
 
@@ -65,8 +83,8 @@ class ChartDataSeries extends ChartElement {
       ..style = PaintingStyle.fill;
 
     Path path = Path();
-
     bool first = true;
+
     if (lineType == LineType.straight) {
       for (var point in data) {
         double x = transform.transformX(point.x);

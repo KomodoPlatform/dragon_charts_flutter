@@ -11,11 +11,11 @@ class ChartState extends Equatable {
 
   factory ChartState.initial() {
     final initialData1 = List.generate(
-      10,
+      20,
       (index) => ChartData(x: index.toDouble(), y: Random().nextDouble()),
     );
     final initialData2 = List.generate(
-      10,
+      20,
       (index) => ChartData(x: index.toDouble(), y: Random().nextDouble()),
     );
     return ChartState(data1: initialData1, data2: initialData2);
