@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'chart_tooltip.dart';
 import 'chart_data.dart';
 import 'chart_element.dart';
 import 'chart_data_series.dart';
@@ -51,8 +52,11 @@ class GraphExtent {
 ///       lineType: LineType.bezier,
 ///     ),
 ///   ],
-///   tooltipBuilder: (context, dataPoints) {
-///     return CustomTooltip(dataPoints: dataPoints);
+///   tooltipBuilder: (context, dataPoints, dataColors) {
+///     return YourTooltipWidget(
+///       dataPoints: dataPoints,
+///       dataColors: dataColors,
+///     );
 ///   },
 ///   backgroundColor: Colors.white,
 /// )
@@ -72,7 +76,8 @@ class LineChart extends StatefulWidget {
   /// A builder function to create custom tooltips for data points.
   ///
   /// If not provided, a default tooltip will be used.
-  final Widget Function(BuildContext, List<ChartData>)? tooltipBuilder;
+  final Widget Function(BuildContext, List<ChartData>, List<Color>)?
+      tooltipBuilder;
 
   /// The extent of the domain (x-axis) of the chart.
   ///
@@ -231,8 +236,8 @@ class _LineChartState extends State<LineChart>
     maxY = newMaxY;
   }
 
-  void _showTooltip(
-      BuildContext context, Offset position, List<ChartData> dataPoints) {
+  void _showTooltip(BuildContext context, Offset position,
+      List<ChartData> dataPoints, List<Color> dataColors) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _hideTooltip();
 
@@ -254,12 +259,13 @@ class _LineChartState extends State<LineChart>
           builder: (context) => Positioned(
             left: left,
             top: top,
-            child: Material(
-              color: Colors.transparent,
-              child: widget.tooltipBuilder != null
-                  ? widget.tooltipBuilder!(context, dataPoints)
-                  : _defaultTooltip(context, dataPoints),
-            ),
+            child: widget.tooltipBuilder != null
+                ? widget.tooltipBuilder!(context, dataPoints, dataColors)
+                : ChartTooltip(
+                    dataPoints: dataPoints,
+                    dataColors: dataColors,
+                    backgroundColor: widget.backgroundColor,
+                  ),
           ),
         );
 
@@ -273,32 +279,6 @@ class _LineChartState extends State<LineChart>
       _tooltipOverlay!.remove();
       _tooltipOverlay = null;
     }
-  }
-
-  Widget _defaultTooltip(BuildContext context, List<ChartData> dataPoints) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(4.0),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: dataPoints.map((data) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              const Icon(Icons.circle, color: Colors.white, size: 8),
-              const SizedBox(width: 4),
-              Text(
-                '(${data.x}, ${data.y})',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
   }
 
   @override
@@ -344,7 +324,12 @@ class _LineChartState extends State<LineChart>
                   }
                 }
                 if (highlightedData.isNotEmpty) {
-                  _showTooltip(context, localPosition, highlightedData);
+                  _showTooltip(
+                    context,
+                    localPosition,
+                    highlightedData,
+                    _highlightedColors,
+                  );
                 } else {
                   _hideTooltip();
                 }
@@ -432,7 +417,7 @@ class _LineChartPainter extends CustomPainter {
         canvas.drawCircle(point, 4.0, highlightPaint);
 
         Paint borderPaint = Paint()
-          // TODO: Make configurable and/or get from theme
+          // TODO: Make configurable and/or get from theme and/or a parameter.
           ..color = Colors.black87
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0;
