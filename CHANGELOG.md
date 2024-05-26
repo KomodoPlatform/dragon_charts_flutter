@@ -1,3 +1,3 @@
-## 0.0.1
+## 0.0.1-pre1 (2024-05-26)
 
-* TODO: Describe initial release.
+* First stable MVP PoC with line graphs implemented.
