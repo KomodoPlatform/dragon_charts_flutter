@@ -1,4 +1,4 @@
-library komodo_defi_graphs;
+library dragon_charts_flutter;
 
 /// A Calculator.
 class Calculator {

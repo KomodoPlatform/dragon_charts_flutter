@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:komodo_defi_graphs/komodo_defi_graphs.dart';
+import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
 void main() {
   test('adds one to input values', () {
