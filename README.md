@@ -74,7 +74,7 @@ class ChartScreen extends StatelessWidget {
         child: BlocBuilder<ChartBloc, ChartState>(
           builder: (context, state) {
             return CustomLineChart(
-              domainExtent: const GraphExtent.tight(),
+              domainExtent: const ChartExtent.tight(),
               elements: [
                 ChartGridLines(isVertical: false, count: 5),
                 ChartAxisLabels(
@@ -133,8 +133,8 @@ The main widget for displaying a line chart.
 
 - `elements`: `List<ChartElement>` - The elements to be drawn on the chart.
 - `tooltipBuilder`: `Widget Function(BuildContext, List<ChartData>)` - The builder for custom tooltips.
-- `domainExtent`: `GraphExtent` - The extent of the domain (x-axis).
-- `rangeExtent`: `GraphExtent` - The extent of the range (y-axis).
+- `domainExtent`: `ChartExtent` - The extent of the domain (x-axis).
+- `rangeExtent`: `ChartExtent` - The extent of the range (y-axis).
 - `backgroundColor`: `Color` - The background color of the chart.
 
 ## Roadmap

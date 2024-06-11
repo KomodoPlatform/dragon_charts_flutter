@@ -5,20 +5,20 @@ import 'chart_element.dart';
 import 'chart_data_series.dart';
 import 'chart_data_transform.dart';
 
-class GraphExtent {
+class ChartExtent {
   final bool auto;
   final double padding;
   final double? min;
   final double? max;
 
-  const GraphExtent({
+  const ChartExtent({
     this.auto = true,
     this.padding = 0.1,
     this.min,
     this.max,
   });
 
-  const GraphExtent.tight() : this(auto: true, padding: 0.0);
+  const ChartExtent.tight() : this(auto: true, padding: 0.0);
 }
 
 /// A customizable and animated line chart widget for Flutter.
@@ -82,12 +82,12 @@ class LineChart extends StatefulWidget {
   /// The extent of the domain (x-axis) of the chart.
   ///
   /// This can be used to control the automatic scaling and padding of the domain.
-  final GraphExtent domainExtent;
+  final ChartExtent domainExtent;
 
   /// The extent of the range (y-axis) of the chart.
   ///
   /// This can be used to control the automatic scaling and padding of the range.
-  final GraphExtent rangeExtent;
+  final ChartExtent rangeExtent;
 
   /// The background color of the chart.
   ///
@@ -103,8 +103,8 @@ class LineChart extends StatefulWidget {
     required this.elements,
     this.tooltipBuilder,
     this.animationDuration = const Duration(milliseconds: 500),
-    this.domainExtent = const GraphExtent(auto: true, padding: 0.1),
-    this.rangeExtent = const GraphExtent(auto: true, padding: 0.1),
+    this.domainExtent = const ChartExtent(auto: true, padding: 0.1),
+    this.rangeExtent = const ChartExtent(auto: true, padding: 0.1),
     this.backgroundColor = Colors.black,
   }) : super(key: key);
 

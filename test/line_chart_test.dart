@@ -9,7 +9,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: LineChart(
-            domainExtent: const GraphExtent.tight(),
+            domainExtent: const ChartExtent.tight(),
             elements: [
               ChartGridLines(isVertical: false, count: 5),
               ChartAxisLabels(

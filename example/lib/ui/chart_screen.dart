@@ -16,7 +16,7 @@ class ChartScreen extends StatelessWidget {
         child: BlocBuilder<ChartBloc, ChartState>(
           builder: (context, state) {
             return LineChart(
-              domainExtent: const GraphExtent.tight(),
+              domainExtent: const ChartExtent.tight(),
               backgroundColor: Theme.of(context).cardColor,
               elements: [
                 ChartGridLines(isVertical: false, count: 5),
