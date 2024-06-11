@@ -1,24 +1,24 @@
+import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
+import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_tooltip.dart';
+import 'package:dragon_charts_flutter/src/marker_selection_strategies/marker_selection_strategies.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'chart_tooltip.dart';
-import 'chart_data.dart';
-import 'chart_element.dart';
-import 'chart_data_series.dart';
-import 'chart_data_transform.dart';
+import 'package:flutter/scheduler.dart';
 
-class GraphExtent {
-  final bool auto;
-  final double padding;
-  final double? min;
-  final double? max;
-
-  const GraphExtent({
+class ChartExtent {
+  const ChartExtent({
     this.auto = true,
     this.padding = 0.1,
     this.min,
     this.max,
   });
 
-  const GraphExtent.tight() : this(auto: true, padding: 0.0);
+  const ChartExtent.tight() : this(auto: true, padding: 0);
+  final bool auto;
+  final double padding;
+  final double? min;
+  final double? max;
 }
 
 /// A customizable and animated line chart widget for Flutter.
@@ -33,14 +33,10 @@ class GraphExtent {
 ///   elements: [
 ///     ChartGridLines(isVertical: false, count: 5),
 ///     ChartAxisLabels(
-///       isVertical: true,
-///       count: 5,
-///       labelBuilder: (value) => value.toStringAsFixed(2),
+///       isVertical: true, count: 5, labelBuilder: (value) => value.toStringAsFixed(2),
 ///     ),
 ///     ChartAxisLabels(
-///       isVertical: false,
-///       count: 5,
-///       labelBuilder: (value) => value.toStringAsFixed(2),
+///       isVertical: false, count: 5, labelBuilder: (value) => value.toStringAsFixed(2),
 ///     ),
 ///     ChartDataSeries(
 ///       data: [ChartData(x: 1.0, y: 2.0)],
@@ -62,6 +58,22 @@ class GraphExtent {
 /// )
 /// ```
 class LineChart extends StatefulWidget {
+  /// Creates a [LineChart] widget.
+  ///
+  /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
+  /// [domainExtent], [rangeExtent], and [backgroundColor] have default values.
+  const LineChart({
+    required this.elements,
+    this.tooltipBuilder,
+    this.animationDuration = const Duration(milliseconds: 500),
+    this.domainExtent = const ChartExtent.tight(),
+    this.rangeExtent = const ChartExtent(),
+    this.backgroundColor = Colors.black,
+    this.padding = const EdgeInsets.all(32),
+    this.markerSelectionStrategy,
+    super.key,
+  });
+
   /// The list of elements to be rendered in the chart.
   ///
   /// This list typically includes instances of [ChartDataSeries],
@@ -76,37 +88,41 @@ class LineChart extends StatefulWidget {
   /// A builder function to create custom tooltips for data points.
   ///
   /// If not provided, a default tooltip will be used.
+  //TODO! Add an index parameter?
   final Widget Function(BuildContext, List<ChartData>, List<Color>)?
       tooltipBuilder;
 
   /// The extent of the domain (x-axis) of the chart.
   ///
   /// This can be used to control the automatic scaling and padding of the domain.
-  final GraphExtent domainExtent;
+  final ChartExtent domainExtent;
 
   /// The extent of the range (y-axis) of the chart.
   ///
   /// This can be used to control the automatic scaling and padding of the range.
-  final GraphExtent rangeExtent;
+  final ChartExtent rangeExtent;
 
   /// The background color of the chart.
   ///
   /// The default value is black.
   final Color backgroundColor;
 
-  /// Creates a [LineChart] widget.
+  /// The padding around the chart to accommodate labels and other elements.
   ///
-  /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
-  /// [domainExtent], [rangeExtent], and [backgroundColor] have default values.
-  const LineChart({
-    Key? key,
-    required this.elements,
-    this.tooltipBuilder,
-    this.animationDuration = const Duration(milliseconds: 500),
-    this.domainExtent = const GraphExtent(auto: true, padding: 0.1),
-    this.rangeExtent = const GraphExtent(auto: true, padding: 0.1),
-    this.backgroundColor = Colors.black,
-  }) : super(key: key);
+  /// The default value is 30.0 on all sides.
+  final EdgeInsets padding;
+
+  /// The strategy to use for selecting markers on the chart.
+  ///
+  /// This parameter is optional. If not specified, no marker selection or painting will be done.
+  ///
+  /// Current available strategies are:
+  /// - [CartesianSelectionStrategy]
+  /// - [PointSelectionStrategy]
+  ///
+  /// TODO: Consider adding a way to create custom marker selection strategies
+  /// and in general, a way to create custom elements.
+  final MarkerSelectionStrategy? markerSelectionStrategy;
 
   @override
   _LineChartState createState() => _LineChartState();
@@ -114,13 +130,14 @@ class LineChart extends StatefulWidget {
 
 class _LineChartState extends State<LineChart>
     with SingleTickerProviderStateMixin {
-  OverlayEntry? _tooltipOverlay;
-  // ignore: unused_field
+  final OverlayPortalController _overlayController = OverlayPortalController();
   Offset? _hoverPosition;
+  List<ChartData>? _highlightedData;
   List<Offset>? _highlightedPoints;
   List<Color> _highlightedColors = [];
   late AnimationController _controller;
   late Animation<double> _animation;
+  Offset? _globalHoverPosition;
 
   List<ChartElement> oldElements = [];
   List<ChartElement> currentElements = [];
@@ -135,8 +152,18 @@ class _LineChartState extends State<LineChart>
   late Animation<double> minYAnimation;
   late Animation<double> maxYAnimation;
 
+  final GlobalKey _chartKey = GlobalKey();
+  Size? _tooltipSize;
+
   @override
   void initState() {
+    // assert(
+    //   (widget.tooltipBuilder == null) ==
+    //       (widget.markerSelectionStrategy == null),
+    //   'If either tooltipBuilder or markerSelectionStrategy is provided, '
+    //   'both must be provided.',
+    // );
+
     super.initState();
     _controller =
         AnimationController(vsync: this, duration: widget.animationDuration);
@@ -167,22 +194,37 @@ class _LineChartState extends State<LineChart>
         _controller.reset();
         _updateDomainRange();
         _controller.forward();
+        _clearHighlightedData();
       });
     } else {
       _updateDomainRange();
     }
   }
 
-  void _updateDomainRange() {
-    double newMinX = double.infinity;
-    double newMaxX = double.negativeInfinity;
-    double newMinY = double.infinity;
-    double newMaxY = double.negativeInfinity;
+  void _clearHighlightedData() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _overlayController.hide();
+        setState(() {
+          _hoverPosition = null;
+          _highlightedData = null;
+          _highlightedPoints = null;
+          _highlightedColors = [];
+        });
+      }
+    });
+  }
 
-    for (var element in widget.elements) {
+  void _updateDomainRange() {
+    var newMinX = double.infinity;
+    var newMaxX = double.negativeInfinity;
+    var newMinY = double.infinity;
+    var newMaxY = double.negativeInfinity;
+
+    for (final element in widget.elements) {
       if (element is ChartDataSeries) {
-        for (var dataPoint in element.data) {
-          double xValue = dataPoint.x;
+        for (final dataPoint in element.data) {
+          final xValue = dataPoint.x;
           if (xValue < newMinX) newMinX = xValue;
           if (xValue > newMaxX) newMaxX = xValue;
           if (dataPoint.y < newMinY) newMinY = dataPoint.y;
@@ -191,7 +233,7 @@ class _LineChartState extends State<LineChart>
       }
     }
 
-    if (newMinX == double.infinity ||
+    if (!newMinX.isFinite ||
         newMaxX == double.negativeInfinity ||
         newMinY == double.infinity ||
         newMaxY == double.negativeInfinity) {
@@ -202,7 +244,7 @@ class _LineChartState extends State<LineChart>
     }
 
     if (widget.domainExtent.auto) {
-      double domainPaddingValue =
+      final domainPaddingValue =
           (newMaxX - newMinX) * widget.domainExtent.padding;
       newMinX -= domainPaddingValue;
       newMaxX += domainPaddingValue;
@@ -212,7 +254,7 @@ class _LineChartState extends State<LineChart>
     }
 
     if (widget.rangeExtent.auto) {
-      double rangePaddingValue =
+      final rangePaddingValue =
           (newMaxY - newMinY) * widget.rangeExtent.padding;
       newMinY -= rangePaddingValue;
       newMaxY += rangePaddingValue;
@@ -236,199 +278,379 @@ class _LineChartState extends State<LineChart>
     maxY = newMaxY;
   }
 
-  void _showTooltip(BuildContext context, Offset position,
-      List<ChartData> dataPoints, List<Color> dataColors) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _hideTooltip();
+  late ChartDataTransform transform;
 
-      final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-      final Size? size = renderBox?.size;
-
-      if (size != null) {
-        double left = position.dx + 10;
-        double top = position.dy - 30;
-
-        if (left + 100 > size.width) {
-          left = size.width - 100;
-        }
-        if (top < 0) {
-          top = 0;
-        }
-
-        _tooltipOverlay = OverlayEntry(
-          builder: (context) => Positioned(
-            left: left,
-            top: top,
-            child: widget.tooltipBuilder != null
-                ? widget.tooltipBuilder!(context, dataPoints, dataColors)
-                : ChartTooltip(
-                    dataPoints: dataPoints,
-                    dataColors: dataColors,
-                    backgroundColor: widget.backgroundColor,
-                  ),
-          ),
-        );
-
-        Overlay.of(context).insert(_tooltipOverlay!);
-      }
-    });
-  }
-
-  void _hideTooltip() {
-    if (_tooltipOverlay != null) {
-      _tooltipOverlay!.remove();
-      _tooltipOverlay = null;
-    }
-  }
+  bool get areAnimationsFinite =>
+      minXAnimation.value.isFinite &&
+      maxXAnimation.value.isFinite &&
+      minYAnimation.value.isFinite &&
+      maxYAnimation.value.isFinite;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        Size size = Size(constraints.maxWidth, constraints.maxHeight);
+    return SizedBox.expand(
+      child: LayoutBuilder(
+        key: _chartKey,
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          final chartSize = Size(
+            size.width - widget.padding.horizontal,
+            size.height - widget.padding.vertical,
+          );
 
-        ChartDataTransform transform = ChartDataTransform(
-          minX: minXAnimation.value,
-          maxX: maxXAnimation.value,
-          minY: minYAnimation.value,
-          maxY: maxYAnimation.value,
-          width: size.width,
-          height: size.height,
-        );
+          if (!chartSize.isFinite || !areAnimationsFinite) {
+            return Container();
+          }
 
-        return Container(
-          color: widget.backgroundColor,
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              setState(() {
-                _hoverPosition = details.localPosition;
-              });
-            },
-            child: MouseRegion(
-              onHover: (details) {
-                final localPosition = details.localPosition;
-                List<ChartData> highlightedData = [];
-                _highlightedPoints = [];
-                _highlightedColors = [];
-                for (var element in widget.elements) {
-                  if (element is ChartDataSeries) {
-                    for (var point in element.data) {
-                      double x = transform.transformX(point.x);
-                      double y = transform.transformY(point.y);
-                      if ((Offset(x, y) - localPosition).distance < 10) {
-                        highlightedData.add(point);
-                        _highlightedPoints!.add(Offset(x, y));
-                        _highlightedColors.add(element.color);
-                      }
-                    }
-                  }
-                }
-                if (highlightedData.isNotEmpty) {
-                  _showTooltip(
-                    context,
-                    localPosition,
-                    highlightedData,
-                    _highlightedColors,
-                  );
-                } else {
-                  _hideTooltip();
-                }
+          transform = ChartDataTransform(
+            minX: minXAnimation.value,
+            maxX: maxXAnimation.value,
+            minY: minYAnimation.value,
+            maxY: maxYAnimation.value,
+            width: chartSize.width,
+            height: chartSize.height,
+          );
+
+          return Container(
+            color: widget.backgroundColor,
+            padding: widget.padding,
+            child: GestureDetector(
+              onPanUpdate: (details) {
                 setState(() {
-                  _hoverPosition = localPosition;
+                  _hoverPosition = details.localPosition;
                 });
               },
-              onExit: (details) {
-                _hideTooltip();
-                setState(() {
-                  _hoverPosition = null;
-                  _highlightedPoints = null;
-                  _highlightedColors = [];
-                });
+              onTapUp: (details) {
+                _handleTap(details.localPosition);
               },
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  List<ChartElement> animatedElements = [];
-                  for (int i = 0; i < currentElements.length; i++) {
-                    if (currentElements[i] is ChartDataSeries &&
-                        oldElements[i] is ChartDataSeries) {
-                      animatedElements.add((oldElements[i] as ChartDataSeries)
-                          .animateTo(currentElements[i] as ChartDataSeries,
-                              _animation.value));
-                    } else {
-                      animatedElements.add(currentElements[i]);
-                    }
-                  }
-                  return CustomPaint(
-                    size: size,
-                    painter: _LineChartPainter(
-                      elements: animatedElements,
-                      transform: transform,
-                      highlightedPoints: _highlightedPoints,
-                      highlightedColors: _highlightedColors,
-                      animation: _animation.value,
-                    ),
-                  );
+              onTapDown: (details) {
+                _handleTap(details.localPosition);
+              },
+              child: MouseRegion(
+                onHover: (details) {
+                  _handleHover(details.localPosition);
                 },
+                onExit: (event) {
+                  _overlayController.hide();
+                  _clearHighlightedData();
+                },
+                child: OverlayPortal(
+                  controller: _overlayController,
+                  overlayChildBuilder: (context) {
+                    if (_hoverPosition == null || _highlightedData == null) {
+                      return Container();
+                    }
+
+                    return Stack(
+                      children: [
+                        if (_tooltipSize == null)
+                          MeasureSize(
+                            onSizeChange: (size) {
+                              if (_tooltipSize != size) {
+                                setState(() {
+                                  _tooltipSize = size;
+                                });
+                              }
+                            },
+                            child: Material(
+                              key: const Key('tooltip'),
+                              color: Colors.transparent,
+                              child: widget.tooltipBuilder != null
+                                  ? widget.tooltipBuilder!(
+                                      context,
+                                      _highlightedData!,
+                                      _highlightedColors,
+                                    )
+                                  : ChartTooltip(
+                                      dataPoints: _highlightedData!,
+                                      dataColors: _highlightedColors,
+                                      backgroundColor: widget.backgroundColor,
+                                    ),
+                            ),
+                          ),
+                        if (_tooltipSize != null)
+                          Positioned(
+                            left: _calculateTooltipXPosition(
+                              _globalHoverPosition!,
+                              _tooltipSize!,
+                              MediaQuery.of(context).size,
+                            ),
+                            top: _calculateTooltipYPosition(
+                              _globalHoverPosition!,
+                              _tooltipSize!,
+                              MediaQuery.of(context).size,
+                            ),
+                            child: Material(
+                              key: const Key('tooltip'),
+                              color: Colors.transparent,
+                              child: widget.tooltipBuilder != null
+                                  ? widget.tooltipBuilder!(
+                                      context,
+                                      _highlightedData!,
+                                      _highlightedColors,
+                                    )
+                                  : ChartTooltip(
+                                      dataPoints: _highlightedData!,
+                                      dataColors: _highlightedColors,
+                                      backgroundColor: widget.backgroundColor,
+                                    ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      final animatedElements = <ChartElement>[];
+                      for (var i = 0; i < currentElements.length; i++) {
+                        if (currentElements[i] is ChartDataSeries &&
+                            oldElements[i] is ChartDataSeries) {
+                          animatedElements.add(
+                            (oldElements[i] as ChartDataSeries).animateTo(
+                              currentElements[i] as ChartDataSeries,
+                              _animation.value,
+                              minYAnimation.value,
+                            ),
+                          );
+                        } else {
+                          animatedElements.add(currentElements[i]);
+                        }
+                      }
+                      return CustomPaint(
+                        key: const Key('chart_custom_paint'),
+                        willChange: !_animation.isCompleted,
+                        painter: _LineChartPainter(
+                          elements: animatedElements,
+                          transform: transform,
+                          highlightedPoints: _highlightedPoints,
+                          highlightedColors: _highlightedColors,
+                          animation: _animation.value,
+                          markerSelectionStrategy:
+                              widget.markerSelectionStrategy,
+                          hoverPosition: _hoverPosition,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
+  }
+
+  void _updateHighlightedData(
+    List<ChartData> highlightedData,
+    List<Offset> highlightedPoints,
+    List<Color> highlightedColors,
+  ) {
+    setState(() {
+      _highlightedData = highlightedData;
+      _highlightedPoints = highlightedPoints;
+      _highlightedColors = highlightedColors;
+    });
+    if (highlightedData.isNotEmpty) {
+      _overlayController.show();
+    } else {
+      _overlayController.hide();
+      _clearHighlightedData();
+    }
+  }
+
+  void _handleHover(Offset localPosition) {
+    if (widget.markerSelectionStrategy != null) {
+      final box = context.findRenderObject()! as RenderBox;
+      final globalPosition = box.localToGlobal(localPosition);
+      final result = widget.markerSelectionStrategy!.handleHover(
+        localPosition,
+        transform,
+        widget.elements,
+      );
+      setState(() {
+        _hoverPosition = localPosition;
+        _globalHoverPosition = globalPosition; // Store the global position
+        _highlightedData = result.$1; // data
+        _highlightedPoints = result.$2; // points
+        _highlightedColors = result.$3; // colors
+      });
+      if (result.$1.isNotEmpty) {
+        _overlayController.show();
+      } else {
+        _overlayController.hide();
+      }
+    }
+  }
+
+  void _handleTap(Offset localPosition) {
+    if (widget.markerSelectionStrategy != null) {
+      final box = context.findRenderObject()! as RenderBox;
+      final globalPosition = box.localToGlobal(localPosition);
+      final result = widget.markerSelectionStrategy!.handleTap(
+        localPosition,
+        transform,
+        widget.elements,
+      );
+      setState(() {
+        _hoverPosition = localPosition;
+        _globalHoverPosition = globalPosition; // Store the global position
+        _highlightedData = result.$1; // data
+        _highlightedPoints = result.$2; // points
+        _highlightedColors = result.$3; // colors
+      });
+      if (result.$1.isNotEmpty) {
+        _overlayController.show();
+      } else {
+        _overlayController.hide();
+      }
+    } else {
+      _clearHighlightedData();
+    }
+  }
+
+  double _calculateTooltipXPosition(
+    Offset globalPosition,
+    Size tooltipSize,
+    Size screenSize,
+  ) {
+    var xPosition = widget.padding.left +
+        globalPosition.dx -
+        tooltipSize.width; // Initial offset to the left
+    if (xPosition + tooltipSize.width > screenSize.width) {
+      // If tooltip exceeds right boundary
+      xPosition =
+          globalPosition.dx - tooltipSize.width - 10; // Offset to the right
+    } else if (xPosition < tooltipSize.width) {
+      // Move to the right if tooltip exceeds left boundary
+      xPosition =
+          widget.padding.left + globalPosition.dx + 10; // Offset to the left
+    } else {
+      xPosition -= 10; // Offset to the left
+    }
+    return xPosition;
+  }
+
+  double _calculateTooltipYPosition(
+    Offset globalPosition,
+    Size tooltipSize,
+    Size screenSize,
+  ) {
+    var yPosition = widget.padding.top +
+        globalPosition.dy -
+        tooltipSize.height; // Initial offset to the top
+    if (yPosition + tooltipSize.height > screenSize.height) {
+      // If tooltip exceeds bottom boundary
+      yPosition =
+          globalPosition.dy - tooltipSize.height - 10; // Offset to the bottom
+    } else if (yPosition < tooltipSize.height) {
+      // Move to the bottom if tooltip exceeds top boundary
+      yPosition =
+          widget.padding.top + globalPosition.dy + 10; // Offset to the top
+    } else {
+      yPosition -= 10; // Offset to the top
+    }
+    return yPosition;
   }
 
   @override
   void dispose() {
-    _hideTooltip();
     _controller.dispose();
     super.dispose();
   }
 }
 
 class _LineChartPainter extends CustomPainter {
-  final List<ChartElement> elements;
-  final ChartDataTransform transform;
-  final List<Offset>? highlightedPoints;
-  final List<Color> highlightedColors;
-  final double animation;
-
   _LineChartPainter({
     required this.elements,
     required this.transform,
     required this.highlightedPoints,
     required this.highlightedColors,
     required this.animation,
+    required this.markerSelectionStrategy,
+    required this.hoverPosition,
   });
+  final List<ChartElement> elements;
+  final ChartDataTransform transform;
+  final List<Offset>? highlightedPoints;
+  final List<Color> highlightedColors;
+  final double animation;
+  final MarkerSelectionStrategy? markerSelectionStrategy;
+  final Offset? hoverPosition;
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (var element in elements) {
+    for (final element in elements) {
       element.paint(canvas, size, transform, animation);
     }
 
-    if (highlightedPoints != null) {
-      for (int i = 0; i < highlightedPoints!.length; i++) {
-        var point = highlightedPoints![i];
-        var color = highlightedColors[i];
-        Paint highlightPaint = Paint()
-          ..color = color
-          ..style = PaintingStyle.fill;
-        canvas.drawCircle(point, 4.0, highlightPaint);
-
-        Paint borderPaint = Paint()
-          // TODO: Make configurable and/or get from theme and/or a parameter.
-          ..color = Colors.black87
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0;
-
-        canvas.drawCircle(point, 5.0, borderPaint);
-      }
+    if (markerSelectionStrategy != null) {
+      markerSelectionStrategy!.paint(
+        canvas,
+        size,
+        transform,
+        highlightedPoints,
+        highlightedColors,
+        hoverPosition,
+      );
     }
+
+    // TODO: Make clip mode configurable
+    canvas.clipRect(
+      Rect.fromLTWH(
+        0,
+        0,
+        size.width,
+        size.height,
+      ),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
+    // return true; //!
+    return oldDelegate.animation != animation ||
+        oldDelegate.hoverPosition != hoverPosition ||
+        !listEquals(oldDelegate.elements, elements) ||
+        !listEquals(oldDelegate.highlightedColors, highlightedColors) ||
+        oldDelegate.transform != transform ||
+        oldDelegate.markerSelectionStrategy != markerSelectionStrategy ||
+        !listEquals(oldDelegate.highlightedPoints, highlightedPoints);
+  }
+}
+
+typedef SizeCallback = void Function(Size size);
+
+class MeasureSize extends StatefulWidget {
+  const MeasureSize({
+    required this.onSizeChange,
+    required this.child,
+    super.key,
+  });
+  final Widget child;
+  final SizeCallback onSizeChange;
+
+  @override
+  _MeasureSizeState createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<MeasureSize> {
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_postFrameCallback);
+    return Container(
+      key: widget.key,
+      child: widget.child,
+    );
+  }
+
+  void _postFrameCallback(_) {
+    if (!mounted) return;
+    final context = this.context;
+    final size = context.size;
+    if (size != null) {
+      widget.onSizeChange(size);
+    }
   }
 }

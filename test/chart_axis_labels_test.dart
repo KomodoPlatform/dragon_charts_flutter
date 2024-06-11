@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ChartAxisLabels', () {

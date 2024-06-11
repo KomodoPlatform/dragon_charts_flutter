@@ -1,54 +1,103 @@
+import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_element.dart';
 import 'package:flutter/material.dart';
-import 'chart_element.dart';
-import 'chart_data_transform.dart';
 
 class ChartAxisLabels extends ChartElement {
-  final bool isVertical;
-  final int count;
-  final String Function(double value) labelBuilder;
-  final double reservedExtent;
-
   ChartAxisLabels({
     required this.isVertical,
     required this.count,
     required this.labelBuilder,
-    this.reservedExtent = 30.0,
   });
 
-  @override
-  void paint(Canvas canvas, Size size, ChartDataTransform transform,
-      double animation) {
+  final bool isVertical;
+  final int count;
+  final String Function(double value) labelBuilder;
+
+  double _calculateMaxLabelExtent(Size size, ChartDataTransform transform) {
+    double maxExtent = 0.0;
     if (isVertical) {
-      for (double i = 0; i <= count; i++) {
-        double y = i * size.height / count;
-        TextPainter textPainter = TextPainter(
+      for (var i = 0; i <= count; i++) {
+        final y = i * size.height / count;
+        final textPainter = TextPainter(
           text: TextSpan(
-              text: labelBuilder(transform.invertY(y)),
-              style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            text: labelBuilder(transform.invertY(y)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
           textDirection: TextDirection.ltr,
         );
         textPainter.layout();
-
-        if (i == 0 || (y - textPainter.height / 2) >= reservedExtent * i) {
-          textPainter.paint(canvas,
-              Offset(-textPainter.width - 5, y - textPainter.height / 2));
+        if (textPainter.width > maxExtent) {
+          maxExtent = textPainter.width;
         }
       }
     } else {
-      for (double i = 0; i <= count; i++) {
-        double x = i * size.width / count;
-        TextPainter textPainter = TextPainter(
+      for (var i = 0; i <= count; i++) {
+        final x = i * size.width / count;
+        final textPainter = TextPainter(
           text: TextSpan(
-              text: labelBuilder(transform.invertX(x)),
-              style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            text: labelBuilder(transform.invertX(x)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
           textDirection: TextDirection.ltr,
         );
         textPainter.layout();
-
-        if (i == 0 || (x - textPainter.width / 2) >= reservedExtent * i) {
-          textPainter.paint(
-              canvas, Offset(x - textPainter.width / 2, size.height + 5));
+        if (textPainter.height > maxExtent) {
+          maxExtent = textPainter.height;
         }
+      }
+    }
+    return maxExtent;
+  }
+
+  EdgeInsets getReservedMargin(Size size, ChartDataTransform transform) {
+    final double maxExtent = _calculateMaxLabelExtent(size, transform);
+    if (isVertical) {
+      return EdgeInsets.only(left: maxExtent + 10);
+    } else {
+      return EdgeInsets.only(bottom: maxExtent + 10);
+    }
+  }
+
+  @override
+  void paint(
+    Canvas canvas,
+    Size size,
+    ChartDataTransform transform,
+    double animation,
+  ) {
+    if (isVertical) {
+      for (var i = 0; i <= count; i++) {
+        final y = i * size.height / count;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: labelBuilder(transform.invertY(y)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter
+          ..layout()
+          ..paint(
+            canvas,
+            Offset(-textPainter.width - 5, y - textPainter.height / 2),
+          );
+      }
+    } else {
+      for (var i = 0; i <= count; i++) {
+        final x = i * size.width / count;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: labelBuilder(transform.invertX(x)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter
+          ..layout()
+          ..paint(
+            canvas,
+            Offset(x - textPainter.width / 2, size.height + 5),
+          );
       }
     }
   }

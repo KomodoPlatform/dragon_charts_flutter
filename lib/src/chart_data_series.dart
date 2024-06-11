@@ -1,19 +1,13 @@
+import 'dart:math';
 import 'dart:ui';
 
-import 'chart_element.dart';
-import 'chart_data.dart';
-import 'chart_data_transform.dart';
-import 'dart:math';
+import 'package:dragon_charts_flutter/src/chart_data.dart';
+import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_element.dart';
 
 enum LineType { straight, bezier }
 
 class ChartDataSeries extends ChartElement {
-  final List<ChartData> data;
-  final Color color;
-  final LineType lineType;
-  final double? nodeRadius;
-  final double strokeWidth;
-
   ChartDataSeries({
     required this.data,
     required this.color,
@@ -22,39 +16,64 @@ class ChartDataSeries extends ChartElement {
     this.nodeRadius,
   });
 
+  final List<ChartData> data;
+  final Color color;
+  final LineType lineType;
+  final double? nodeRadius;
+  final double strokeWidth;
+
   ChartDataSeries animateTo(
-      ChartDataSeries newDataSeries, double animationValue) {
-    List<ChartData> interpolatedData = [];
-    int minLength = min(data.length, newDataSeries.data.length);
-    int maxLength = max(data.length, newDataSeries.data.length);
+    ChartDataSeries newDataSeries,
+    double animationValue,
+    double minY,
+  ) {
+    final interpolatedData = <ChartData>[];
+    final int minLength = min(data.length, newDataSeries.data.length);
+    final int maxLength = max(data.length, newDataSeries.data.length);
 
-    for (int i = 0; i < minLength; i++) {
-      double oldX = data[i].x;
-      double newX = newDataSeries.data[i].x;
-      double interpolatedX = oldX + (newX - oldX) * animationValue;
+    // Interpolate shared data points
+    for (var i = 0; i < minLength; i++) {
+      final oldX = data[i].x;
+      final newX = newDataSeries.data[i].x;
+      final interpolatedX = oldX + (newX - oldX) * animationValue;
 
-      double oldY = data[i].y;
-      double newY = newDataSeries.data[i].y;
-      double interpolatedY = oldY + (newY - oldY) * animationValue;
+      final oldY = data[i].y;
+      final newY = newDataSeries.data[i].y;
+      final interpolatedY = oldY + (newY - oldY) * animationValue;
 
-      interpolatedData.add(ChartData(
-        x: interpolatedX,
-        y: interpolatedY,
-      ));
+      interpolatedData.add(
+        ChartData(
+          x: interpolatedX,
+          y: interpolatedY,
+        ),
+      );
     }
 
-    for (int i = minLength; i < maxLength; i++) {
-      if (data.length > newDataSeries.data.length) {
-        interpolatedData.add(ChartData(
-          x: data[i].x,
-          y: data[i].y * (1 - animationValue),
-        ));
-      } else {
-        interpolatedData.add(ChartData(
-          x: newDataSeries.data[i].x,
-          y: newDataSeries.data[i].y * animationValue,
-        ));
-      }
+    // Handle removed data points
+    for (var i = minLength; i < data.length; i++) {
+      final oldX = data[i].x;
+      final oldY = data[i].y;
+      final interpolatedY = oldY + (minY - oldY) * animationValue;
+
+      interpolatedData.add(
+        ChartData(
+          x: oldX,
+          y: interpolatedY,
+        ),
+      );
+    }
+
+    // Handle added data points
+    for (var i = minLength; i < newDataSeries.data.length; i++) {
+      final newX = newDataSeries.data[i].x;
+      final newY = newDataSeries.data[i].y * animationValue;
+
+      interpolatedData.add(
+        ChartData(
+          x: newX,
+          y: newY,
+        ),
+      );
     }
 
     return ChartDataSeries(
@@ -67,28 +86,35 @@ class ChartDataSeries extends ChartElement {
   }
 
   @override
-  void paint(Canvas canvas, Size size, ChartDataTransform transform,
-      double animation) {
+  void paint(
+    Canvas canvas,
+    Size size,
+    ChartDataTransform transform,
+    double animation,
+  ) {
     if (data.isEmpty) return;
 
-    Paint linePaint = Paint()
+    final linePaint = Paint()
       ..color = color
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    Paint nodePaint = Paint()
+    final nodePaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
-    Path path = Path();
-    bool first = true;
+    final path = Path();
+    var first = true;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    // canvas.clipRect(rect);
 
     if (lineType == LineType.straight) {
-      for (var point in data) {
-        double x = transform.transformX(point.x);
-        double y = transform.transformY(point.y);
+      for (final point in data) {
+        final x = transform.transformX(point.x);
+        final y = transform.transformY(point.y);
 
         if (first) {
           path.moveTo(x, y);
@@ -102,21 +128,29 @@ class ChartDataSeries extends ChartElement {
     } else if (lineType == LineType.bezier) {
       if (data.isNotEmpty) {
         path.moveTo(
-            transform.transformX(data[0].x), transform.transformY(data[0].y));
+          transform.transformX(data[0].x),
+          transform.transformY(data[0].y),
+        );
 
-        for (int i = 0; i < data.length - 1; i++) {
-          double x1 = transform.transformX(data[i].x);
-          double y1 = transform.transformY(data[i].y);
-          double x2 = transform.transformX(data[i + 1].x);
-          double y2 = transform.transformY(data[i + 1].y);
+        for (var i = 0; i < data.length - 1; i++) {
+          final x1 = transform.transformX(data[i].x);
+          final y1 = transform.transformY(data[i].y);
+          final x2 = transform.transformX(data[i + 1].x);
+          final y2 = transform.transformY(data[i + 1].y);
 
-          double controlPointX1 = x1 + (x2 - x1) / 3;
-          double controlPointY1 = y1;
-          double controlPointX2 = x1 + 2 * (x2 - x1) / 3;
-          double controlPointY2 = y2;
+          final controlPointX1 = x1 + (x2 - x1) / 3;
+          final controlPointY1 = y1;
+          final controlPointX2 = x1 + 2 * (x2 - x1) / 3;
+          final controlPointY2 = y2;
 
-          path.cubicTo(controlPointX1, controlPointY1, controlPointX2,
-              controlPointY2, x2, y2);
+          path.cubicTo(
+            controlPointX1,
+            controlPointY1,
+            controlPointX2,
+            controlPointY2,
+            x2,
+            y2,
+          );
 
           _drawNode(canvas, nodePaint, Offset(x1, y1));
         }

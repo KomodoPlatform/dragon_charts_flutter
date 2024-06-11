@@ -1,8 +1,8 @@
+import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/chart_bloc.dart';
 import '../blocs/chart_state.dart';
-import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
 class ChartScreen extends StatelessWidget {
   const ChartScreen({super.key});
@@ -12,28 +12,33 @@ class ChartScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Custom Line Chart with Animation')),
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(48),
         child: BlocBuilder<ChartBloc, ChartState>(
           builder: (context, state) {
             return LineChart(
-              domainExtent: const GraphExtent.tight(),
+              domainExtent: const ChartExtent.tight(),
               backgroundColor: Theme.of(context).cardColor,
               elements: [
                 ChartGridLines(isVertical: false, count: 5),
-                ChartAxisLabels(
-                    isVertical: true,
-                    count: 5,
-                    labelBuilder: (value) => value.toStringAsFixed(2)),
-                ChartAxisLabels(
-                    isVertical: false,
-                    count: 5,
-                    labelBuilder: (value) => value.toStringAsFixed(2)),
                 ChartDataSeries(data: state.data1, color: Colors.blue),
                 ChartDataSeries(
                     data: state.data2,
                     color: Colors.red,
                     lineType: LineType.bezier),
+                ChartAxisLabels(
+                    isVertical: false,
+                    count: 5,
+                    labelBuilder: (value) => value.toStringAsFixed(9)),
+                ChartAxisLabels(
+                    isVertical: true,
+                    count: 5,
+                    // reservedExtent: 80,
+                    labelBuilder: (value) => value.toStringAsFixed(9)),
               ],
+              markerSelectionStrategy: CartesianSelectionStrategy(
+                enableHorizontalDrawing: true,
+                snapToClosest: true,
+              ),
               // tooltipBuilder: (context, dataPoints) {
               //   return ChartTooltip(
               //       dataPoints: dataPoints, backgroundColor: Colors);

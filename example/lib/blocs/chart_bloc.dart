@@ -13,14 +13,16 @@ class ChartBloc extends Bloc<ChartEvent, ChartState> {
     on<ChartUpdated>(_onChartUpdated);
     on<ChartDataPointCountChanged>(_onChartDataPointAdded);
 
+    add(const ChartDataPointCountChanged(50));
+
     // Timer to periodically update chart data
-    Timer.periodic(const Duration(seconds: 2), (timer) {
-      add(ChartUpdated());
-      if (Random().nextBool()) {
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      // add(ChartUpdated());
+      if (Random().nextBool() || true) {
         add(ChartDataPointCountChanged(
 
-            // Randomly add or remove 2 to 5 data points
-            (Random().nextInt(10) + 5) * (Random().nextBool() ? 1 : -1)));
+            // Randomly add or remove 5 to 50 data points
+            (Random().nextInt(50) + 5) * (Random().nextBool() ? 1 : -1)));
       }
     });
   }
@@ -38,23 +40,26 @@ class ChartBloc extends Bloc<ChartEvent, ChartState> {
 
   Future<void> _onChartDataPointAdded(
       ChartDataPointCountChanged event, Emitter<ChartState> emit) async {
+    if (event.count.abs() == 0) return;
+
+    final currentCount = state.data1.length;
+
     final updatedData1 = List<ChartData>.from(state.data1);
     final updatedData2 = List<ChartData>.from(state.data2);
 
     if (event.count > 0) {
       for (int i = 0; i < event.count; i++) {
         updatedData1.add(ChartData(
-            x: updatedData1.length.toDouble(), y: Random().nextDouble()));
+            x: (currentCount + i).toDouble(), y: Random().nextDouble()));
         updatedData2.add(ChartData(
-            x: updatedData2.length.toDouble(), y: Random().nextDouble()));
+            x: (currentCount + i).toDouble(), y: Random().nextDouble()));
       }
     } else {
-      final count = (updatedData1.length + event.count)
-          .clamp(0, double.maxFinite)
-          .toInt();
-
-      updatedData1.removeRange(count, updatedData1.length);
-      updatedData2.removeRange(count, updatedData2.length);
+      for (int i = 0; i < event.count.abs(); i++) {
+        if (updatedData1.isEmpty) break;
+        updatedData1.removeLast();
+        updatedData2.removeLast();
+      }
     }
 
     emit(state.copyWith(data1: updatedData1, data2: updatedData2));

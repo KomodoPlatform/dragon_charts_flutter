@@ -1,7 +1,4 @@
 class ChartDataTransform {
-  final double minX, maxX, minY, maxY;
-  final double width, height;
-
   ChartDataTransform({
     required this.minX,
     required this.maxX,
@@ -12,7 +9,14 @@ class ChartDataTransform {
   }) : assert(
           [minX, maxX, minY, maxY, width, height]
               .every((element) => element.isFinite),
+          'All values must be finite.',
         );
+  final double minX;
+  final double maxX;
+  final double minY;
+  final double maxY;
+  final double width;
+  final double height;
 
   double transformX(double x) => (x - minX) / (maxX - minX) * width;
 
