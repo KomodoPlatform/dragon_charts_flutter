@@ -23,32 +23,30 @@ class ChartAxisLabels extends ChartElement {
         double y = i * size.height / count;
         TextPainter textPainter = TextPainter(
           text: TextSpan(
-              text: labelBuilder(transform.invertY(y)),
-              style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            text: labelBuilder(transform.invertY(y)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
           textDirection: TextDirection.ltr,
         );
         textPainter.layout();
 
-        if (i == 0 || (y - textPainter.height / 2) >= reservedExtent * i) {
-          textPainter.paint(canvas,
-              Offset(-textPainter.width - 5, y - textPainter.height / 2));
-        }
+        textPainter.paint(
+            canvas, Offset(-textPainter.width - 5, y - textPainter.height / 2));
       }
     } else {
       for (double i = 0; i <= count; i++) {
         double x = i * size.width / count;
         TextPainter textPainter = TextPainter(
           text: TextSpan(
-              text: labelBuilder(transform.invertX(x)),
-              style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            text: labelBuilder(transform.invertX(x)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
           textDirection: TextDirection.ltr,
         );
         textPainter.layout();
 
-        if (i == 0 || (x - textPainter.width / 2) >= reservedExtent * i) {
-          textPainter.paint(
-              canvas, Offset(x - textPainter.width / 2, size.height + 5));
-        }
+        textPainter.paint(
+            canvas, Offset(x - textPainter.width / 2, size.height + 5));
       }
     }
   }

@@ -95,6 +95,11 @@ class LineChart extends StatefulWidget {
   /// The default value is black.
   final Color backgroundColor;
 
+  /// The padding around the chart to accommodate labels and other elements.
+  ///
+  /// The default value is 30.0 on all sides.
+  final EdgeInsets padding;
+
   /// Creates a [LineChart] widget.
   ///
   /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
@@ -107,6 +112,7 @@ class LineChart extends StatefulWidget {
     this.domainExtent = const ChartExtent(auto: true, padding: 0.1),
     this.rangeExtent = const ChartExtent(auto: true, padding: 0.1),
     this.backgroundColor = Colors.black,
+    this.padding = const EdgeInsets.all(30.0),
   }) : super(key: key);
 
   @override
@@ -254,9 +260,13 @@ class _LineChartState extends State<LineChart>
       key: _chartKey,
       builder: (context, constraints) {
         Size size = Size(constraints.maxWidth, constraints.maxHeight);
+        Size chartSize = Size(
+          size.width - widget.padding.horizontal,
+          size.height - widget.padding.vertical,
+        );
 
         // Ensure that size is finite
-        if (!size.isFinite || !areAnimationsFinite) {
+        if (!chartSize.isFinite || !areAnimationsFinite) {
           // Return an empty container or a placeholder widget if size is not finite
           return Container();
         }
@@ -266,12 +276,13 @@ class _LineChartState extends State<LineChart>
           maxX: maxXAnimation.value,
           minY: minYAnimation.value,
           maxY: maxYAnimation.value,
-          width: size.width,
-          height: size.height,
+          width: chartSize.width,
+          height: chartSize.height,
         );
 
         return Container(
           color: widget.backgroundColor,
+          padding: widget.padding,
           child: GestureDetector(
             onPanUpdate: (details) {
               setState(() {
@@ -363,7 +374,7 @@ class _LineChartState extends State<LineChart>
                       }
                     }
                     return CustomPaint(
-                      size: size,
+                      size: chartSize,
                       painter: _LineChartPainter(
                         elements: animatedElements,
                         transform: transform,
