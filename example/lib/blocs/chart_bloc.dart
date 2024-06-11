@@ -14,7 +14,7 @@ class ChartBloc extends Bloc<ChartEvent, ChartState> {
     on<ChartDataPointCountChanged>(_onChartDataPointAdded);
 
     // Timer to periodically update chart data
-    Timer.periodic(const Duration(seconds: 2), (timer) {
+    Timer.periodic(const Duration(seconds: 5), (timer) {
       add(ChartUpdated());
       if (Random().nextBool()) {
         add(ChartDataPointCountChanged(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'chart_tooltip.dart';
 import 'chart_data.dart';
@@ -114,9 +115,9 @@ class LineChart extends StatefulWidget {
 
 class _LineChartState extends State<LineChart>
     with SingleTickerProviderStateMixin {
-  OverlayEntry? _tooltipOverlay;
-  // ignore: unused_field
+  final OverlayPortalController _overlayController = OverlayPortalController();
   Offset? _hoverPosition;
+  List<ChartData>? _highlightedData;
   List<Offset>? _highlightedPoints;
   List<Color> _highlightedColors = [];
   late AnimationController _controller;
@@ -134,6 +135,9 @@ class _LineChartState extends State<LineChart>
   late Animation<double> maxXAnimation;
   late Animation<double> minYAnimation;
   late Animation<double> maxYAnimation;
+
+  final GlobalKey _chartKey = GlobalKey();
+  Size? _tooltipSize;
 
   @override
   void initState() {
@@ -191,7 +195,7 @@ class _LineChartState extends State<LineChart>
       }
     }
 
-    if (newMinX == double.infinity ||
+    if (!newMinX.isFinite ||
         newMaxX == double.negativeInfinity ||
         newMinY == double.infinity ||
         newMaxY == double.negativeInfinity) {
@@ -236,58 +240,28 @@ class _LineChartState extends State<LineChart>
     maxY = newMaxY;
   }
 
-  void _showTooltip(BuildContext context, Offset position,
-      List<ChartData> dataPoints, List<Color> dataColors) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _hideTooltip();
+  late ChartDataTransform transform;
 
-      final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-      final Size? size = renderBox?.size;
-
-      if (size != null) {
-        double left = position.dx + 10;
-        double top = position.dy - 30;
-
-        if (left + 100 > size.width) {
-          left = size.width - 100;
-        }
-        if (top < 0) {
-          top = 0;
-        }
-
-        _tooltipOverlay = OverlayEntry(
-          builder: (context) => Positioned(
-            left: left,
-            top: top,
-            child: widget.tooltipBuilder != null
-                ? widget.tooltipBuilder!(context, dataPoints, dataColors)
-                : ChartTooltip(
-                    dataPoints: dataPoints,
-                    dataColors: dataColors,
-                    backgroundColor: widget.backgroundColor,
-                  ),
-          ),
-        );
-
-        Overlay.of(context).insert(_tooltipOverlay!);
-      }
-    });
-  }
-
-  void _hideTooltip() {
-    if (_tooltipOverlay != null) {
-      _tooltipOverlay!.remove();
-      _tooltipOverlay = null;
-    }
-  }
+  bool get areAnimationsFinite =>
+      minXAnimation.value.isFinite &&
+      maxXAnimation.value.isFinite &&
+      minYAnimation.value.isFinite &&
+      maxYAnimation.value.isFinite;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
+      key: _chartKey,
       builder: (context, constraints) {
         Size size = Size(constraints.maxWidth, constraints.maxHeight);
 
-        ChartDataTransform transform = ChartDataTransform(
+        // Ensure that size is finite
+        if (!size.isFinite || !areAnimationsFinite) {
+          // Return an empty container or a placeholder widget if size is not finite
+          return Container();
+        }
+
+        transform = ChartDataTransform(
           minX: minXAnimation.value,
           maxX: maxXAnimation.value,
           minY: minYAnimation.value,
@@ -304,72 +278,102 @@ class _LineChartState extends State<LineChart>
                 _hoverPosition = details.localPosition;
               });
             },
+            onTapUp: (details) {
+              _handleTap(details.localPosition);
+            },
+            onTapDown: (details) {
+              _handleTap(details.localPosition);
+            },
             child: MouseRegion(
               onHover: (details) {
-                final localPosition = details.localPosition;
-                List<ChartData> highlightedData = [];
-                _highlightedPoints = [];
-                _highlightedColors = [];
-                for (var element in widget.elements) {
-                  if (element is ChartDataSeries) {
-                    for (var point in element.data) {
-                      double x = transform.transformX(point.x);
-                      double y = transform.transformY(point.y);
-                      if ((Offset(x, y) - localPosition).distance < 10) {
-                        highlightedData.add(point);
-                        _highlightedPoints!.add(Offset(x, y));
-                        _highlightedColors.add(element.color);
-                      }
-                    }
-                  }
-                }
-                if (highlightedData.isNotEmpty) {
-                  _showTooltip(
-                    context,
-                    localPosition,
-                    highlightedData,
-                    _highlightedColors,
-                  );
-                } else {
-                  _hideTooltip();
-                }
-                setState(() {
-                  _hoverPosition = localPosition;
-                });
+                _handleHover(details.localPosition);
               },
               onExit: (details) {
-                _hideTooltip();
+                _overlayController.hide();
                 setState(() {
                   _hoverPosition = null;
                   _highlightedPoints = null;
                   _highlightedColors = [];
+                  _highlightedData = null;
                 });
               },
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  List<ChartElement> animatedElements = [];
-                  for (int i = 0; i < currentElements.length; i++) {
-                    if (currentElements[i] is ChartDataSeries &&
-                        oldElements[i] is ChartDataSeries) {
-                      animatedElements.add((oldElements[i] as ChartDataSeries)
-                          .animateTo(currentElements[i] as ChartDataSeries,
-                              _animation.value));
-                    } else {
-                      animatedElements.add(currentElements[i]);
-                    }
+              child: OverlayPortal(
+                controller: _overlayController,
+                overlayChildBuilder: (context) {
+                  if (_hoverPosition == null || _highlightedData == null) {
+                    return Container();
                   }
-                  return CustomPaint(
-                    size: size,
-                    painter: _LineChartPainter(
-                      elements: animatedElements,
-                      transform: transform,
-                      highlightedPoints: _highlightedPoints,
-                      highlightedColors: _highlightedColors,
-                      animation: _animation.value,
-                    ),
+
+                  return Stack(
+                    children: [
+                      if (_tooltipSize == null)
+                        MeasureSize(
+                          onSizeChange: (size) {
+                            setState(() {
+                              _tooltipSize = size;
+                            });
+                          },
+                          child: Material(
+                            color: Colors.transparent,
+                            child: widget.tooltipBuilder != null
+                                ? widget.tooltipBuilder!(context,
+                                    _highlightedData!, _highlightedColors)
+                                : ChartTooltip(
+                                    dataPoints: _highlightedData!,
+                                    dataColors: _highlightedColors,
+                                    backgroundColor: widget.backgroundColor,
+                                  ),
+                          ),
+                        ),
+                      if (_tooltipSize != null)
+                        Positioned(
+                          left: _calculateTooltipXPosition(
+                              _globalHoverPosition!,
+                              _tooltipSize!,
+                              MediaQuery.of(context).size),
+                          top: _calculateTooltipYPosition(_globalHoverPosition!,
+                              _tooltipSize!, MediaQuery.of(context).size),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: widget.tooltipBuilder != null
+                                ? widget.tooltipBuilder!(context,
+                                    _highlightedData!, _highlightedColors)
+                                : ChartTooltip(
+                                    dataPoints: _highlightedData!,
+                                    dataColors: _highlightedColors,
+                                    backgroundColor: widget.backgroundColor,
+                                  ),
+                          ),
+                        ),
+                    ],
                   );
                 },
+                child: AnimatedBuilder(
+                  animation: _animation,
+                  builder: (context, child) {
+                    List<ChartElement> animatedElements = [];
+                    for (int i = 0; i < currentElements.length; i++) {
+                      if (currentElements[i] is ChartDataSeries &&
+                          oldElements[i] is ChartDataSeries) {
+                        animatedElements.add((oldElements[i] as ChartDataSeries)
+                            .animateTo(currentElements[i] as ChartDataSeries,
+                                _animation.value));
+                      } else {
+                        animatedElements.add(currentElements[i]);
+                      }
+                    }
+                    return CustomPaint(
+                      size: size,
+                      painter: _LineChartPainter(
+                        elements: animatedElements,
+                        transform: transform,
+                        highlightedPoints: _highlightedPoints,
+                        highlightedColors: _highlightedColors,
+                        animation: _animation.value,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -378,10 +382,107 @@ class _LineChartState extends State<LineChart>
     );
   }
 
+  void _handleHover(Offset localPosition) {
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final globalPosition = box.localToGlobal(localPosition);
+    List<ChartData> highlightedData = [];
+    _highlightedPoints = [];
+    _highlightedColors = [];
+    for (var element in widget.elements) {
+      if (element is ChartDataSeries) {
+        for (var point in element.data) {
+          double x = transform.transformX(point.x);
+          double y = transform.transformY(point.y);
+          if ((Offset(x, y) - localPosition).distance < 10) {
+            highlightedData.add(point);
+            _highlightedPoints!.add(Offset(x, y));
+            _highlightedColors.add(element.color);
+          }
+        }
+      }
+    }
+    _highlightedData = highlightedData;
+    if (highlightedData.isNotEmpty) {
+      _overlayController.show();
+    } else {
+      _overlayController.hide();
+    }
+    setState(() {
+      _hoverPosition = localPosition;
+      _globalHoverPosition = globalPosition; // Store the global position
+    });
+  }
+
+  void _handleTap(Offset localPosition) {
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final globalPosition = box.localToGlobal(localPosition);
+    List<ChartData> highlightedData = [];
+    _highlightedPoints = [];
+    _highlightedColors = [];
+    for (var element in widget.elements) {
+      if (element is ChartDataSeries) {
+        for (var point in element.data) {
+          double x = transform.transformX(point.x);
+          double y = transform.transformY(point.y);
+          if ((Offset(x, y) - localPosition).distance < 10) {
+            highlightedData.add(point);
+            _highlightedPoints!.add(Offset(x, y));
+            _highlightedColors.add(element.color);
+          }
+        }
+      }
+    }
+    _highlightedData = highlightedData;
+    if (highlightedData.isNotEmpty) {
+      _overlayController.show();
+    } else {
+      _overlayController.hide();
+    }
+    setState(() {
+      _hoverPosition = localPosition;
+      _globalHoverPosition = globalPosition; // Store the global position
+    });
+  }
+
+  // Additional state to hold the global hover position
+  Offset? _globalHoverPosition;
+
+  double _calculateTooltipXPosition(
+      Offset globalPosition, Size tooltipSize, Size screenSize) {
+    double xPosition = globalPosition.dx + 10; // Initial offset to the right
+    if (xPosition + tooltipSize.width > screenSize.width) {
+      // If tooltip exceeds right boundary
+      xPosition =
+          globalPosition.dx - tooltipSize.width - 10; // Offset to the left
+    }
+    if (xPosition < 10) {
+      // Ensure tooltip doesn't go beyond the left boundary
+      xPosition = 10;
+    }
+    return xPosition;
+  }
+
+  double _calculateTooltipYPosition(
+      Offset globalPosition, Size tooltipSize, Size screenSize) {
+    double yPosition = globalPosition.dy -
+        tooltipSize.height -
+        10; // Initial offset above the hover position
+    if (yPosition < 10) {
+      // If tooltip exceeds top boundary
+      yPosition = globalPosition.dy + 10; // Offset below the hover position
+    }
+    if (yPosition + tooltipSize.height > screenSize.height) {
+      // Ensure tooltip doesn't go beyond the bottom boundary
+      yPosition = screenSize.height - tooltipSize.height - 10;
+    }
+    return yPosition;
+  }
+
   @override
   void dispose() {
-    _hideTooltip();
     _controller.dispose();
+    // TODO?
+    // _overlayController.dispose();
     super.dispose();
   }
 }
@@ -417,7 +518,6 @@ class _LineChartPainter extends CustomPainter {
         canvas.drawCircle(point, 4.0, highlightPaint);
 
         Paint borderPaint = Paint()
-          // TODO: Make configurable and/or get from theme and/or a parameter.
           ..color = Colors.black87
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0;
@@ -428,7 +528,46 @@ class _LineChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
+    // Compare only the relevant properties
+    return oldDelegate.highlightedPoints != highlightedPoints ||
+        oldDelegate.animation != animation ||
+        !listEquals(oldDelegate.elements, elements);
+  }
+}
+
+typedef SizeCallback = void Function(Size size);
+
+class MeasureSize extends StatefulWidget {
+  final Widget child;
+  final SizeCallback onSizeChange;
+
+  const MeasureSize({
+    Key? key,
+    required this.onSizeChange,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  _MeasureSizeState createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<MeasureSize> {
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_postFrameCallback);
+    return Container(
+      key: widget.key,
+      child: widget.child,
+    );
+  }
+
+  void _postFrameCallback(_) {
+    if (!mounted) return;
+    final context = this.context;
+    final size = context.size;
+    if (size != null) {
+      widget.onSizeChange(size);
+    }
   }
 }

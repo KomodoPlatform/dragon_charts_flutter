@@ -12,7 +12,7 @@ class ChartScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Custom Line Chart with Animation')),
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(48),
         child: BlocBuilder<ChartBloc, ChartState>(
           builder: (context, state) {
             return LineChart(
