@@ -1,7 +1,11 @@
 import 'dart:ui';
-import 'chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
 
 abstract class ChartElement {
   void paint(
-      Canvas canvas, Size size, ChartDataTransform transform, double animation);
+    Canvas canvas,
+    Size size,
+    ChartDataTransform transform,
+    double animation,
+  );
 }
