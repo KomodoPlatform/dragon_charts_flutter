@@ -4,6 +4,7 @@ import 'blocs/chart_bloc.dart';
 import 'ui/chart_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

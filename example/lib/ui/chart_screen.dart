@@ -20,20 +20,22 @@ class ChartScreen extends StatelessWidget {
               backgroundColor: Theme.of(context).cardColor,
               elements: [
                 ChartGridLines(isVertical: false, count: 5),
-                ChartAxisLabels(
-                    isVertical: true,
-                    count: 5,
-                    labelBuilder: (value) => value.toStringAsFixed(2)),
-                ChartAxisLabels(
-                    isVertical: false,
-                    count: 5,
-                    labelBuilder: (value) => value.toStringAsFixed(2)),
                 ChartDataSeries(data: state.data1, color: Colors.blue),
                 ChartDataSeries(
                     data: state.data2,
                     color: Colors.red,
                     lineType: LineType.bezier),
+                ChartAxisLabels(
+                    isVertical: false,
+                    count: 5,
+                    labelBuilder: (value) => value.toStringAsFixed(9)),
+                ChartAxisLabels(
+                    isVertical: true,
+                    count: 5,
+                    reservedExtent: 80,
+                    labelBuilder: (value) => value.toStringAsFixed(9)),
               ],
+              markerSelectionStrategy: CartesianSelectionStrategy(),
               // tooltipBuilder: (context, dataPoints) {
               //   return ChartTooltip(
               //       dataPoints: dataPoints, backgroundColor: Colors);

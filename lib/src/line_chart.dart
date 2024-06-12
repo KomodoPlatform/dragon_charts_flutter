@@ -1,17 +1,12 @@
+import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
+import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_tooltip.dart';
+import 'package:dragon_charts_flutter/src/marker_selection_strategies/marker_selection_strategies.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'chart_tooltip.dart';
-import 'chart_data.dart';
-import 'chart_element.dart';
-import 'chart_data_series.dart';
-import 'chart_data_transform.dart';
+import 'package:flutter/scheduler.dart';
 
 class ChartExtent {
-  final bool auto;
-  final double padding;
-  final double? min;
-  final double? max;
-
   const ChartExtent({
     this.auto = true,
     this.padding = 0.1,
@@ -19,7 +14,11 @@ class ChartExtent {
     this.max,
   });
 
-  const ChartExtent.tight() : this(auto: true, padding: 0.0);
+  const ChartExtent.tight() : this(auto: true, padding: 0);
+  final bool auto;
+  final double padding;
+  final double? min;
+  final double? max;
 }
 
 /// A customizable and animated line chart widget for Flutter.
@@ -34,14 +33,10 @@ class ChartExtent {
 ///   elements: [
 ///     ChartGridLines(isVertical: false, count: 5),
 ///     ChartAxisLabels(
-///       isVertical: true,
-///       count: 5,
-///       labelBuilder: (value) => value.toStringAsFixed(2),
+///       isVertical: true, count: 5, labelBuilder: (value) => value.toStringAsFixed(2),
 ///     ),
 ///     ChartAxisLabels(
-///       isVertical: false,
-///       count: 5,
-///       labelBuilder: (value) => value.toStringAsFixed(2),
+///       isVertical: false, count: 5, labelBuilder: (value) => value.toStringAsFixed(2),
 ///     ),
 ///     ChartDataSeries(
 ///       data: [ChartData(x: 1.0, y: 2.0)],
@@ -63,6 +58,22 @@ class ChartExtent {
 /// )
 /// ```
 class LineChart extends StatefulWidget {
+  /// Creates a [LineChart] widget.
+  ///
+  /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
+  /// [domainExtent], [rangeExtent], and [backgroundColor] have default values.
+  const LineChart({
+    required this.elements,
+    this.tooltipBuilder,
+    this.animationDuration = const Duration(milliseconds: 500),
+    this.domainExtent = const ChartExtent(),
+    this.rangeExtent = const ChartExtent(),
+    this.backgroundColor = Colors.black,
+    this.padding = const EdgeInsets.all(30),
+    this.markerSelectionStrategy,
+    super.key,
+  });
+
   /// The list of elements to be rendered in the chart.
   ///
   /// This list typically includes instances of [ChartDataSeries],
@@ -100,20 +111,10 @@ class LineChart extends StatefulWidget {
   /// The default value is 30.0 on all sides.
   final EdgeInsets padding;
 
-  /// Creates a [LineChart] widget.
+  /// The strategy to use for selecting markers on the chart.
   ///
-  /// The [elements] and [tooltipBuilder] are required. The [animationDuration],
-  /// [domainExtent], [rangeExtent], and [backgroundColor] have default values.
-  const LineChart({
-    Key? key,
-    required this.elements,
-    this.tooltipBuilder,
-    this.animationDuration = const Duration(milliseconds: 500),
-    this.domainExtent = const ChartExtent(auto: true, padding: 0.1),
-    this.rangeExtent = const ChartExtent(auto: true, padding: 0.1),
-    this.backgroundColor = Colors.black,
-    this.padding = const EdgeInsets.all(30.0),
-  }) : super(key: key);
+  /// This parameter is optional. If not specified, no marker selection or painting will be done.
+  final MarkerSelectionStrategy? markerSelectionStrategy;
 
   @override
   _LineChartState createState() => _LineChartState();
@@ -128,6 +129,8 @@ class _LineChartState extends State<LineChart>
   List<Color> _highlightedColors = [];
   late AnimationController _controller;
   late Animation<double> _animation;
+  // Additional state to hold the global hover position
+  Offset? _globalHoverPosition;
 
   List<ChartElement> oldElements = [];
   List<ChartElement> currentElements = [];
@@ -177,22 +180,37 @@ class _LineChartState extends State<LineChart>
         _controller.reset();
         _updateDomainRange();
         _controller.forward();
+        _clearHighlightedData();
       });
     } else {
       _updateDomainRange();
     }
   }
 
-  void _updateDomainRange() {
-    double newMinX = double.infinity;
-    double newMaxX = double.negativeInfinity;
-    double newMinY = double.infinity;
-    double newMaxY = double.negativeInfinity;
+  void _clearHighlightedData() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _overlayController.hide();
+        setState(() {
+          _hoverPosition = null;
+          _highlightedData = null;
+          _highlightedPoints = null;
+          _highlightedColors = [];
+        });
+      }
+    });
+  }
 
-    for (var element in widget.elements) {
+  void _updateDomainRange() {
+    var newMinX = double.infinity;
+    var newMaxX = double.negativeInfinity;
+    var newMinY = double.infinity;
+    var newMaxY = double.negativeInfinity;
+
+    for (final element in widget.elements) {
       if (element is ChartDataSeries) {
-        for (var dataPoint in element.data) {
-          double xValue = dataPoint.x;
+        for (final dataPoint in element.data) {
+          final xValue = dataPoint.x;
           if (xValue < newMinX) newMinX = xValue;
           if (xValue > newMaxX) newMaxX = xValue;
           if (dataPoint.y < newMinY) newMinY = dataPoint.y;
@@ -212,7 +230,7 @@ class _LineChartState extends State<LineChart>
     }
 
     if (widget.domainExtent.auto) {
-      double domainPaddingValue =
+      final domainPaddingValue =
           (newMaxX - newMinX) * widget.domainExtent.padding;
       newMinX -= domainPaddingValue;
       newMaxX += domainPaddingValue;
@@ -222,7 +240,7 @@ class _LineChartState extends State<LineChart>
     }
 
     if (widget.rangeExtent.auto) {
-      double rangePaddingValue =
+      final rangePaddingValue =
           (newMaxY - newMinY) * widget.rangeExtent.padding;
       newMinY -= rangePaddingValue;
       newMaxY += rangePaddingValue;
@@ -259,15 +277,13 @@ class _LineChartState extends State<LineChart>
     return LayoutBuilder(
       key: _chartKey,
       builder: (context, constraints) {
-        Size size = Size(constraints.maxWidth, constraints.maxHeight);
-        Size chartSize = Size(
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final chartSize = Size(
           size.width - widget.padding.horizontal,
           size.height - widget.padding.vertical,
         );
 
-        // Ensure that size is finite
         if (!chartSize.isFinite || !areAnimationsFinite) {
-          // Return an empty container or a placeholder widget if size is not finite
           return Container();
         }
 
@@ -300,13 +316,7 @@ class _LineChartState extends State<LineChart>
                 _handleHover(details.localPosition);
               },
               onExit: (details) {
-                _overlayController.hide();
-                setState(() {
-                  _hoverPosition = null;
-                  _highlightedPoints = null;
-                  _highlightedColors = [];
-                  _highlightedData = null;
-                });
+                _clearHighlightedData();
               },
               child: OverlayPortal(
                 controller: _overlayController,
@@ -327,8 +337,11 @@ class _LineChartState extends State<LineChart>
                           child: Material(
                             color: Colors.transparent,
                             child: widget.tooltipBuilder != null
-                                ? widget.tooltipBuilder!(context,
-                                    _highlightedData!, _highlightedColors)
+                                ? widget.tooltipBuilder!(
+                                    context,
+                                    _highlightedData!,
+                                    _highlightedColors,
+                                  )
                                 : ChartTooltip(
                                     dataPoints: _highlightedData!,
                                     dataColors: _highlightedColors,
@@ -339,16 +352,23 @@ class _LineChartState extends State<LineChart>
                       if (_tooltipSize != null)
                         Positioned(
                           left: _calculateTooltipXPosition(
-                              _globalHoverPosition!,
-                              _tooltipSize!,
-                              MediaQuery.of(context).size),
-                          top: _calculateTooltipYPosition(_globalHoverPosition!,
-                              _tooltipSize!, MediaQuery.of(context).size),
+                            _globalHoverPosition!,
+                            _tooltipSize!,
+                            MediaQuery.of(context).size,
+                          ),
+                          top: _calculateTooltipYPosition(
+                            _globalHoverPosition!,
+                            _tooltipSize!,
+                            MediaQuery.of(context).size,
+                          ),
                           child: Material(
                             color: Colors.transparent,
                             child: widget.tooltipBuilder != null
-                                ? widget.tooltipBuilder!(context,
-                                    _highlightedData!, _highlightedColors)
+                                ? widget.tooltipBuilder!(
+                                    context,
+                                    _highlightedData!,
+                                    _highlightedColors,
+                                  )
                                 : ChartTooltip(
                                     dataPoints: _highlightedData!,
                                     dataColors: _highlightedColors,
@@ -362,13 +382,16 @@ class _LineChartState extends State<LineChart>
                 child: AnimatedBuilder(
                   animation: _animation,
                   builder: (context, child) {
-                    List<ChartElement> animatedElements = [];
-                    for (int i = 0; i < currentElements.length; i++) {
+                    final animatedElements = <ChartElement>[];
+                    for (var i = 0; i < currentElements.length; i++) {
                       if (currentElements[i] is ChartDataSeries &&
                           oldElements[i] is ChartDataSeries) {
-                        animatedElements.add((oldElements[i] as ChartDataSeries)
-                            .animateTo(currentElements[i] as ChartDataSeries,
-                                _animation.value));
+                        animatedElements.add(
+                          (oldElements[i] as ChartDataSeries).animateTo(
+                            currentElements[i] as ChartDataSeries,
+                            _animation.value,
+                          ),
+                        );
                       } else {
                         animatedElements.add(currentElements[i]);
                       }
@@ -381,6 +404,8 @@ class _LineChartState extends State<LineChart>
                         highlightedPoints: _highlightedPoints,
                         highlightedColors: _highlightedColors,
                         animation: _animation.value,
+                        markerSelectionStrategy: widget.markerSelectionStrategy,
+                        hoverPosition: _hoverPosition,
                       ),
                     );
                   },
@@ -393,74 +418,64 @@ class _LineChartState extends State<LineChart>
     );
   }
 
-  void _handleHover(Offset localPosition) {
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final globalPosition = box.localToGlobal(localPosition);
-    List<ChartData> highlightedData = [];
-    _highlightedPoints = [];
-    _highlightedColors = [];
-    for (var element in widget.elements) {
-      if (element is ChartDataSeries) {
-        for (var point in element.data) {
-          double x = transform.transformX(point.x);
-          double y = transform.transformY(point.y);
-          if ((Offset(x, y) - localPosition).distance < 10) {
-            highlightedData.add(point);
-            _highlightedPoints!.add(Offset(x, y));
-            _highlightedColors.add(element.color);
-          }
-        }
-      }
-    }
-    _highlightedData = highlightedData;
+  // Update highlighted data function
+  void _updateHighlightedData(
+    List<ChartData> highlightedData,
+    List<Offset> highlightedPoints,
+    List<Color> highlightedColors,
+  ) {
+    setState(() {
+      _highlightedData = highlightedData;
+      _highlightedPoints = highlightedPoints;
+      _highlightedColors = highlightedColors;
+    });
     if (highlightedData.isNotEmpty) {
       _overlayController.show();
     } else {
       _overlayController.hide();
     }
-    setState(() {
-      _hoverPosition = localPosition;
-      _globalHoverPosition = globalPosition; // Store the global position
-    });
+  }
+
+  void _handleHover(Offset localPosition) {
+    if (widget.markerSelectionStrategy != null) {
+      final box = context.findRenderObject()! as RenderBox;
+      final globalPosition = box.localToGlobal(localPosition);
+      widget.markerSelectionStrategy!.handleHover(
+        localPosition,
+        transform,
+        widget.elements,
+        _updateHighlightedData,
+      );
+      setState(() {
+        _hoverPosition = localPosition;
+        _globalHoverPosition = globalPosition; // Store the global position
+      });
+    }
   }
 
   void _handleTap(Offset localPosition) {
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final globalPosition = box.localToGlobal(localPosition);
-    List<ChartData> highlightedData = [];
-    _highlightedPoints = [];
-    _highlightedColors = [];
-    for (var element in widget.elements) {
-      if (element is ChartDataSeries) {
-        for (var point in element.data) {
-          double x = transform.transformX(point.x);
-          double y = transform.transformY(point.y);
-          if ((Offset(x, y) - localPosition).distance < 10) {
-            highlightedData.add(point);
-            _highlightedPoints!.add(Offset(x, y));
-            _highlightedColors.add(element.color);
-          }
-        }
-      }
+    if (widget.markerSelectionStrategy != null) {
+      final box = context.findRenderObject()! as RenderBox;
+      final globalPosition = box.localToGlobal(localPosition);
+      widget.markerSelectionStrategy!.handleTap(
+        localPosition,
+        transform,
+        widget.elements,
+        _updateHighlightedData,
+      );
+      setState(() {
+        _hoverPosition = localPosition;
+        _globalHoverPosition = globalPosition; // Store the global position
+      });
     }
-    _highlightedData = highlightedData;
-    if (highlightedData.isNotEmpty) {
-      _overlayController.show();
-    } else {
-      _overlayController.hide();
-    }
-    setState(() {
-      _hoverPosition = localPosition;
-      _globalHoverPosition = globalPosition; // Store the global position
-    });
   }
 
-  // Additional state to hold the global hover position
-  Offset? _globalHoverPosition;
-
   double _calculateTooltipXPosition(
-      Offset globalPosition, Size tooltipSize, Size screenSize) {
-    double xPosition = globalPosition.dx + 10; // Initial offset to the right
+    Offset globalPosition,
+    Size tooltipSize,
+    Size screenSize,
+  ) {
+    var xPosition = globalPosition.dx + 10; // Initial offset to the right
     if (xPosition + tooltipSize.width > screenSize.width) {
       // If tooltip exceeds right boundary
       xPosition =
@@ -474,8 +489,11 @@ class _LineChartState extends State<LineChart>
   }
 
   double _calculateTooltipYPosition(
-      Offset globalPosition, Size tooltipSize, Size screenSize) {
-    double yPosition = globalPosition.dy -
+    Offset globalPosition,
+    Size tooltipSize,
+    Size screenSize,
+  ) {
+    var yPosition = globalPosition.dy -
         tooltipSize.height -
         10; // Initial offset above the hover position
     if (yPosition < 10) {
@@ -499,50 +517,46 @@ class _LineChartState extends State<LineChart>
 }
 
 class _LineChartPainter extends CustomPainter {
-  final List<ChartElement> elements;
-  final ChartDataTransform transform;
-  final List<Offset>? highlightedPoints;
-  final List<Color> highlightedColors;
-  final double animation;
-
   _LineChartPainter({
     required this.elements,
     required this.transform,
     required this.highlightedPoints,
     required this.highlightedColors,
     required this.animation,
+    required this.markerSelectionStrategy,
+    required this.hoverPosition,
   });
+  final List<ChartElement> elements;
+  final ChartDataTransform transform;
+  final List<Offset>? highlightedPoints;
+  final List<Color> highlightedColors;
+  final double animation;
+  final MarkerSelectionStrategy? markerSelectionStrategy;
+  final Offset? hoverPosition;
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (var element in elements) {
+    for (final element in elements) {
       element.paint(canvas, size, transform, animation);
     }
 
-    if (highlightedPoints != null) {
-      for (int i = 0; i < highlightedPoints!.length; i++) {
-        var point = highlightedPoints![i];
-        var color = highlightedColors[i];
-        Paint highlightPaint = Paint()
-          ..color = color
-          ..style = PaintingStyle.fill;
-        canvas.drawCircle(point, 4.0, highlightPaint);
-
-        Paint borderPaint = Paint()
-          ..color = Colors.black87
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0;
-
-        canvas.drawCircle(point, 5.0, borderPaint);
-      }
+    if (markerSelectionStrategy != null) {
+      markerSelectionStrategy!.paint(
+        canvas,
+        size,
+        transform,
+        highlightedPoints,
+        highlightedColors,
+        hoverPosition,
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
-    // Compare only the relevant properties
     return oldDelegate.highlightedPoints != highlightedPoints ||
         oldDelegate.animation != animation ||
+        oldDelegate.hoverPosition != hoverPosition ||
         !listEquals(oldDelegate.elements, elements);
   }
 }
@@ -550,14 +564,13 @@ class _LineChartPainter extends CustomPainter {
 typedef SizeCallback = void Function(Size size);
 
 class MeasureSize extends StatefulWidget {
-  final Widget child;
-  final SizeCallback onSizeChange;
-
   const MeasureSize({
-    Key? key,
     required this.onSizeChange,
     required this.child,
-  }) : super(key: key);
+    super.key,
+  });
+  final Widget child;
+  final SizeCallback onSizeChange;
 
   @override
   _MeasureSizeState createState() => _MeasureSizeState();
