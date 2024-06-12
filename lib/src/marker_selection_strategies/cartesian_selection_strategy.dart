@@ -91,7 +91,7 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
         ..strokeWidth = lineWidth;
 
       if (enableVertical) {
-        var startY = 0;
+        double startY = 0.0;
         while (startY < size.height) {
           canvas.drawLine(
             Offset(hoverPosition.dx, startY),
@@ -104,7 +104,7 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
 
       if (enableHorizontal) {
         linePaint.color = horizontalLineColor;
-        var startX = 0;
+        double startX = 0.0;
         while (startX < size.width) {
           canvas.drawLine(
             Offset(startX, hoverPosition.dy),

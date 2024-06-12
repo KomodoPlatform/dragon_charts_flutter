@@ -31,12 +31,12 @@ class ChartAxisLabels extends ChartElement {
           ),
           textDirection: TextDirection.ltr,
         );
-        textPainter.layout();
-
-        textPainter.paint(
-          canvas,
-          Offset(-textPainter.width - 5, y - textPainter.height / 2),
-        );
+        textPainter
+          ..layout()
+          ..paint(
+            canvas,
+            Offset(-textPainter.width - 5, y - textPainter.height / 2),
+          );
       }
     } else {
       for (var i = 0; i <= count; i++) {
@@ -48,12 +48,12 @@ class ChartAxisLabels extends ChartElement {
           ),
           textDirection: TextDirection.ltr,
         );
-        textPainter.layout();
-
-        textPainter.paint(
-          canvas,
-          Offset(x - textPainter.width / 2, size.height + 5),
-        );
+        textPainter
+          ..layout()
+          ..paint(
+            canvas,
+            Offset(x - textPainter.width / 2, size.height + 5),
+          );
       }
     }
   }

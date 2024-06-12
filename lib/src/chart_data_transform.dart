@@ -9,6 +9,7 @@ class ChartDataTransform {
   }) : assert(
           [minX, maxX, minY, maxY, width, height]
               .every((element) => element.isFinite),
+          'All values must be finite.',
         );
   final double minX;
   final double maxX;
