@@ -5,19 +5,15 @@ import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
 import 'package:dragon_charts_flutter/src/chart_element.dart';
 
 abstract class MarkerSelectionStrategy {
-  void handleHover(
+  (List<ChartData> data, List<Offset> points, List<Color> colors) handleHover(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   );
-  void handleTap(
+  (List<ChartData> data, List<Offset> points, List<Color> colors) handleTap(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   );
 
   void paint(

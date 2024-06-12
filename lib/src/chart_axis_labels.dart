@@ -7,12 +7,56 @@ class ChartAxisLabels extends ChartElement {
     required this.isVertical,
     required this.count,
     required this.labelBuilder,
-    this.reservedExtent = 30.0,
   });
+
   final bool isVertical;
   final int count;
   final String Function(double value) labelBuilder;
-  final double reservedExtent;
+
+  double _calculateMaxLabelExtent(Size size, ChartDataTransform transform) {
+    double maxExtent = 0.0;
+    if (isVertical) {
+      for (var i = 0; i <= count; i++) {
+        final y = i * size.height / count;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: labelBuilder(transform.invertY(y)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+        if (textPainter.width > maxExtent) {
+          maxExtent = textPainter.width;
+        }
+      }
+    } else {
+      for (var i = 0; i <= count; i++) {
+        final x = i * size.width / count;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: labelBuilder(transform.invertX(x)),
+            style: const TextStyle(color: Colors.grey, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+        if (textPainter.height > maxExtent) {
+          maxExtent = textPainter.height;
+        }
+      }
+    }
+    return maxExtent;
+  }
+
+  EdgeInsets getReservedMargin(Size size, ChartDataTransform transform) {
+    double maxExtent = _calculateMaxLabelExtent(size, transform);
+    if (isVertical) {
+      return EdgeInsets.only(left: maxExtent + 10);
+    } else {
+      return EdgeInsets.only(bottom: maxExtent + 10);
+    }
+  }
 
   @override
   void paint(

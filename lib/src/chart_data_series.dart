@@ -15,6 +15,7 @@ class ChartDataSeries extends ChartElement {
     this.lineType = LineType.straight,
     this.nodeRadius,
   });
+
   final List<ChartData> data;
   final Color color;
   final LineType lineType;
@@ -24,11 +25,13 @@ class ChartDataSeries extends ChartElement {
   ChartDataSeries animateTo(
     ChartDataSeries newDataSeries,
     double animationValue,
+    double minY,
   ) {
     final interpolatedData = <ChartData>[];
     final int minLength = min(data.length, newDataSeries.data.length);
     final int maxLength = max(data.length, newDataSeries.data.length);
 
+    // Interpolate shared data points
     for (var i = 0; i < minLength; i++) {
       final oldX = data[i].x;
       final newX = newDataSeries.data[i].x;
@@ -46,22 +49,31 @@ class ChartDataSeries extends ChartElement {
       );
     }
 
-    for (var i = minLength; i < maxLength; i++) {
-      if (data.length > newDataSeries.data.length) {
-        interpolatedData.add(
-          ChartData(
-            x: data[i].x,
-            y: data[i].y * (1 - animationValue),
-          ),
-        );
-      } else {
-        interpolatedData.add(
-          ChartData(
-            x: newDataSeries.data[i].x,
-            y: newDataSeries.data[i].y * animationValue,
-          ),
-        );
-      }
+    // Handle removed data points
+    for (var i = minLength; i < data.length; i++) {
+      final oldX = data[i].x;
+      final oldY = data[i].y;
+      final interpolatedY = oldY + (minY - oldY) * animationValue;
+
+      interpolatedData.add(
+        ChartData(
+          x: oldX,
+          y: interpolatedY,
+        ),
+      );
+    }
+
+    // Handle added data points
+    for (var i = minLength; i < newDataSeries.data.length; i++) {
+      final newX = newDataSeries.data[i].x;
+      final newY = newDataSeries.data[i].y * animationValue;
+
+      interpolatedData.add(
+        ChartData(
+          x: newX,
+          y: newY,
+        ),
+      );
     }
 
     return ChartDataSeries(
@@ -95,6 +107,9 @@ class ChartDataSeries extends ChartElement {
 
     final path = Path();
     var first = true;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    // canvas.clipRect(rect);
 
     if (lineType == LineType.straight) {
       for (final point in data) {

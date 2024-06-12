@@ -1,7 +1,9 @@
 import 'dart:ui';
 
-import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
+import 'package:dragon_charts_flutter/src/chart_data.dart';
+import 'package:dragon_charts_flutter/src/chart_data_series.dart';
 import 'package:dragon_charts_flutter/src/chart_data_transform.dart';
+import 'package:dragon_charts_flutter/src/chart_element.dart';
 import 'package:dragon_charts_flutter/src/marker_selection_strategies/marker_selection_strategies.dart';
 
 class CartesianSelectionStrategy extends MarkerSelectionStrategy {
@@ -18,6 +20,7 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
     this.highlightFillColor,
     this.highlightBorderColor = const Color.fromRGBO(0, 0, 0, 0.87),
     this.highlightBorderWidth = 2.0,
+    this.snapToClosest = false,
   });
 
   final bool enableVerticalSelection;
@@ -32,52 +35,74 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
   final Color? highlightFillColor;
   final Color highlightBorderColor;
   final double highlightBorderWidth;
+  final bool snapToClosest;
 
   @override
-  void handleHover(
+  (List<ChartData>, List<Offset>, List<Color>) handleHover(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   ) {
     final highlightedData = <ChartData>[];
     final highlightedPoints = <Offset>[];
     final highlightedColors = <Color>[];
+    double? minXDistance;
+    double? closestX;
+
     for (final element in elements) {
       if (element is ChartDataSeries) {
         for (final point in element.data) {
           final x = transform.transformX(point.x);
           final y = transform.transformY(point.y);
-          if (enableVerticalSelection && (localPosition.dx - x).abs() < 5) {
-            highlightedData.add(point);
-            highlightedPoints.add(Offset(x, y));
-            highlightedColors.add(element.color);
-          }
-          if (enableHorizontalSelection && (localPosition.dy - y).abs() < 5) {
-            highlightedData.add(point);
-            highlightedPoints.add(Offset(x, y));
-            highlightedColors.add(element.color);
+          final xDistance = (localPosition.dx - x).abs();
+
+          if (snapToClosest) {
+            if (minXDistance == null || xDistance < minXDistance) {
+              minXDistance = xDistance;
+              closestX = x;
+            }
+          } else {
+            if (enableVerticalSelection && xDistance < 5) {
+              highlightedData.add(point);
+              highlightedPoints.add(Offset(x, y));
+              highlightedColors.add(element.color);
+            }
+            if (enableHorizontalSelection && (localPosition.dy - y).abs() < 5) {
+              highlightedData.add(point);
+              highlightedPoints.add(Offset(x, y));
+              highlightedColors.add(element.color);
+            }
           }
         }
       }
     }
-    updateHighlightedData(
-      highlightedData,
-      highlightedPoints,
-      highlightedColors,
-    );
+
+    if (snapToClosest && closestX != null) {
+      for (final element in elements) {
+        if (element is ChartDataSeries) {
+          for (final point in element.data) {
+            final x = transform.transformX(point.x);
+            final y = transform.transformY(point.y);
+            if ((x - closestX).abs() < 1e-6) {
+              highlightedData.add(point);
+              highlightedPoints.add(Offset(x, y));
+              highlightedColors.add(element.color);
+            }
+          }
+        }
+      }
+    }
+
+    return (highlightedData, highlightedPoints, highlightedColors);
   }
 
   @override
-  void handleTap(
+  (List<ChartData>, List<Offset>, List<Color>) handleTap(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   ) {
-    handleHover(localPosition, transform, elements, updateHighlightedData);
+    return handleHover(localPosition, transform, elements);
   }
 
   @override

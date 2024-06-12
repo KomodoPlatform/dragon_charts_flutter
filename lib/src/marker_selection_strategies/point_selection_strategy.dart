@@ -6,12 +6,10 @@ import 'package:dragon_charts_flutter/src/marker_selection_strategies/marker_sel
 
 class PointSelectionStrategy extends MarkerSelectionStrategy {
   @override
-  void handleHover(
+  (List<ChartData>, List<Offset>, List<Color>) handleHover(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   ) {
     final highlightedData = <ChartData>[];
     final highlightedPoints = <Offset>[];
@@ -29,22 +27,16 @@ class PointSelectionStrategy extends MarkerSelectionStrategy {
         }
       }
     }
-    updateHighlightedData(
-      highlightedData,
-      highlightedPoints,
-      highlightedColors,
-    );
+    return (highlightedData, highlightedPoints, highlightedColors);
   }
 
   @override
-  void handleTap(
+  (List<ChartData>, List<Offset>, List<Color>) handleTap(
     Offset localPosition,
     ChartDataTransform transform,
     List<ChartElement> elements,
-    void Function(List<ChartData>, List<Offset>, List<Color>)
-        updateHighlightedData,
   ) {
-    handleHover(localPosition, transform, elements, updateHighlightedData);
+    return handleHover(localPosition, transform, elements);
   }
 
   @override

@@ -25,7 +25,8 @@ void main() {
         color: Colors.blue,
       );
 
-      final animatedSeries = chartDataSeries1.animateTo(chartDataSeries2, 0.5);
+      final animatedSeries =
+          chartDataSeries1.animateTo(chartDataSeries2, 0.5, 0);
 
       expect(animatedSeries.data[0].y, 3.0);
     });

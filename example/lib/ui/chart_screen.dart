@@ -1,8 +1,8 @@
+import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/chart_bloc.dart';
 import '../blocs/chart_state.dart';
-import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
 class ChartScreen extends StatelessWidget {
   const ChartScreen({super.key});
@@ -32,11 +32,12 @@ class ChartScreen extends StatelessWidget {
                 ChartAxisLabels(
                     isVertical: true,
                     count: 5,
-                    reservedExtent: 80,
+                    // reservedExtent: 80,
                     labelBuilder: (value) => value.toStringAsFixed(9)),
               ],
               markerSelectionStrategy: CartesianSelectionStrategy(
                 enableHorizontalDrawing: true,
+                snapToClosest: true,
               ),
               // tooltipBuilder: (context, dataPoints) {
               //   return ChartTooltip(

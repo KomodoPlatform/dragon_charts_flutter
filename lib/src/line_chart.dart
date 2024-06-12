@@ -114,6 +114,13 @@ class LineChart extends StatefulWidget {
   /// The strategy to use for selecting markers on the chart.
   ///
   /// This parameter is optional. If not specified, no marker selection or painting will be done.
+  ///
+  /// Current available strategies are:
+  /// - [CartesianSelectionStrategy]
+  /// - [PointSelectionStrategy]
+  ///
+  /// TODO: Consider adding a way to create custom marker selection strategies
+  /// and in general, a way to create custom elements.
   final MarkerSelectionStrategy? markerSelectionStrategy;
 
   @override
@@ -129,7 +136,6 @@ class _LineChartState extends State<LineChart>
   List<Color> _highlightedColors = [];
   late AnimationController _controller;
   late Animation<double> _animation;
-  // Additional state to hold the global hover position
   Offset? _globalHoverPosition;
 
   List<ChartElement> oldElements = [];
@@ -150,6 +156,13 @@ class _LineChartState extends State<LineChart>
 
   @override
   void initState() {
+    // assert(
+    //   (widget.tooltipBuilder == null) ==
+    //       (widget.markerSelectionStrategy == null),
+    //   'If either tooltipBuilder or markerSelectionStrategy is provided, '
+    //   'both must be provided.',
+    // );
+
     super.initState();
     _controller =
         AnimationController(vsync: this, duration: widget.animationDuration);
@@ -274,151 +287,160 @@ class _LineChartState extends State<LineChart>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      key: _chartKey,
-      builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final chartSize = Size(
-          size.width - widget.padding.horizontal,
-          size.height - widget.padding.vertical,
-        );
+    return SizedBox.expand(
+      child: LayoutBuilder(
+        key: _chartKey,
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          final chartSize = Size(
+            size.width - widget.padding.horizontal,
+            size.height - widget.padding.vertical,
+          );
 
-        if (!chartSize.isFinite || !areAnimationsFinite) {
-          return Container();
-        }
+          if (!chartSize.isFinite || !areAnimationsFinite) {
+            return Container();
+          }
 
-        transform = ChartDataTransform(
-          minX: minXAnimation.value,
-          maxX: maxXAnimation.value,
-          minY: minYAnimation.value,
-          maxY: maxYAnimation.value,
-          width: chartSize.width,
-          height: chartSize.height,
-        );
+          transform = ChartDataTransform(
+            minX: minXAnimation.value,
+            maxX: maxXAnimation.value,
+            minY: minYAnimation.value,
+            maxY: maxYAnimation.value,
+            width: chartSize.width,
+            height: chartSize.height,
+          );
 
-        return Container(
-          color: widget.backgroundColor,
-          padding: widget.padding,
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              setState(() {
-                _hoverPosition = details.localPosition;
-              });
-            },
-            onTapUp: (details) {
-              _handleTap(details.localPosition);
-            },
-            onTapDown: (details) {
-              _handleTap(details.localPosition);
-            },
-            child: MouseRegion(
-              onHover: (details) {
-                _handleHover(details.localPosition);
+          return Container(
+            color: widget.backgroundColor,
+            padding: widget.padding,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  _hoverPosition = details.localPosition;
+                });
               },
-              onExit: (details) {
-                _clearHighlightedData();
+              onTapUp: (details) {
+                _handleTap(details.localPosition);
               },
-              child: OverlayPortal(
-                controller: _overlayController,
-                overlayChildBuilder: (context) {
-                  if (_hoverPosition == null || _highlightedData == null) {
-                    return Container();
-                  }
-
-                  return Stack(
-                    children: [
-                      if (_tooltipSize == null)
-                        MeasureSize(
-                          onSizeChange: (size) {
-                            setState(() {
-                              _tooltipSize = size;
-                            });
-                          },
-                          child: Material(
-                            color: Colors.transparent,
-                            child: widget.tooltipBuilder != null
-                                ? widget.tooltipBuilder!(
-                                    context,
-                                    _highlightedData!,
-                                    _highlightedColors,
-                                  )
-                                : ChartTooltip(
-                                    dataPoints: _highlightedData!,
-                                    dataColors: _highlightedColors,
-                                    backgroundColor: widget.backgroundColor,
-                                  ),
-                          ),
-                        ),
-                      if (_tooltipSize != null)
-                        Positioned(
-                          left: _calculateTooltipXPosition(
-                            _globalHoverPosition!,
-                            _tooltipSize!,
-                            MediaQuery.of(context).size,
-                          ),
-                          top: _calculateTooltipYPosition(
-                            _globalHoverPosition!,
-                            _tooltipSize!,
-                            MediaQuery.of(context).size,
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: widget.tooltipBuilder != null
-                                ? widget.tooltipBuilder!(
-                                    context,
-                                    _highlightedData!,
-                                    _highlightedColors,
-                                  )
-                                : ChartTooltip(
-                                    dataPoints: _highlightedData!,
-                                    dataColors: _highlightedColors,
-                                    backgroundColor: widget.backgroundColor,
-                                  ),
-                          ),
-                        ),
-                    ],
-                  );
+              onTapDown: (details) {
+                _handleTap(details.localPosition);
+              },
+              child: MouseRegion(
+                onHover: (details) {
+                  _handleHover(details.localPosition);
                 },
-                child: AnimatedBuilder(
-                  animation: _animation,
-                  builder: (context, child) {
-                    final animatedElements = <ChartElement>[];
-                    for (var i = 0; i < currentElements.length; i++) {
-                      if (currentElements[i] is ChartDataSeries &&
-                          oldElements[i] is ChartDataSeries) {
-                        animatedElements.add(
-                          (oldElements[i] as ChartDataSeries).animateTo(
-                            currentElements[i] as ChartDataSeries,
-                            _animation.value,
-                          ),
-                        );
-                      } else {
-                        animatedElements.add(currentElements[i]);
-                      }
+                onExit: (event) {
+                  _overlayController.hide();
+                  _clearHighlightedData();
+                },
+                child: OverlayPortal(
+                  controller: _overlayController,
+                  overlayChildBuilder: (context) {
+                    if (_hoverPosition == null || _highlightedData == null) {
+                      return Container();
                     }
-                    return CustomPaint(
-                      size: chartSize,
-                      painter: _LineChartPainter(
-                        elements: animatedElements,
-                        transform: transform,
-                        highlightedPoints: _highlightedPoints,
-                        highlightedColors: _highlightedColors,
-                        animation: _animation.value,
-                        markerSelectionStrategy: widget.markerSelectionStrategy,
-                        hoverPosition: _hoverPosition,
-                      ),
+
+                    return Stack(
+                      children: [
+                        if (_tooltipSize == null)
+                          MeasureSize(
+                            onSizeChange: (size) {
+                              if (_tooltipSize != size) {
+                                setState(() {
+                                  _tooltipSize = size;
+                                });
+                              }
+                            },
+                            child: Material(
+                              key: const Key('tooltip'),
+                              color: Colors.transparent,
+                              child: widget.tooltipBuilder != null
+                                  ? widget.tooltipBuilder!(
+                                      context,
+                                      _highlightedData!,
+                                      _highlightedColors,
+                                    )
+                                  : ChartTooltip(
+                                      dataPoints: _highlightedData!,
+                                      dataColors: _highlightedColors,
+                                      backgroundColor: widget.backgroundColor,
+                                    ),
+                            ),
+                          ),
+                        if (_tooltipSize != null)
+                          Positioned(
+                            left: _calculateTooltipXPosition(
+                              _globalHoverPosition!,
+                              _tooltipSize!,
+                              MediaQuery.of(context).size,
+                            ),
+                            top: _calculateTooltipYPosition(
+                              _globalHoverPosition!,
+                              _tooltipSize!,
+                              MediaQuery.of(context).size,
+                            ),
+                            child: Material(
+                              key: const Key('tooltip'),
+                              color: Colors.transparent,
+                              child: widget.tooltipBuilder != null
+                                  ? widget.tooltipBuilder!(
+                                      context,
+                                      _highlightedData!,
+                                      _highlightedColors,
+                                    )
+                                  : ChartTooltip(
+                                      dataPoints: _highlightedData!,
+                                      dataColors: _highlightedColors,
+                                      backgroundColor: widget.backgroundColor,
+                                    ),
+                            ),
+                          ),
+                      ],
                     );
                   },
+                  child: AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      final animatedElements = <ChartElement>[];
+                      for (var i = 0; i < currentElements.length; i++) {
+                        if (currentElements[i] is ChartDataSeries &&
+                            oldElements[i] is ChartDataSeries) {
+                          animatedElements.add(
+                            (oldElements[i] as ChartDataSeries).animateTo(
+                              currentElements[i] as ChartDataSeries,
+                              _animation.value,
+                              minYAnimation.value,
+                            ),
+                          );
+                        } else {
+                          animatedElements.add(currentElements[i]);
+                        }
+                      }
+                      return CustomPaint(
+                        key: const Key('chart_custom_paint'),
+                        willChange: !_animation.isCompleted,
+                        painter: _LineChartPainter(
+                          elements: animatedElements,
+                          transform: transform,
+                          highlightedPoints: _highlightedPoints,
+                          highlightedColors: _highlightedColors,
+                          animation: _animation.value,
+                          markerSelectionStrategy:
+                              widget.markerSelectionStrategy,
+                          hoverPosition: _hoverPosition,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
-  // Update highlighted data function
   void _updateHighlightedData(
     List<ChartData> highlightedData,
     List<Offset> highlightedPoints,
@@ -433,6 +455,7 @@ class _LineChartState extends State<LineChart>
       _overlayController.show();
     } else {
       _overlayController.hide();
+      _clearHighlightedData();
     }
   }
 
@@ -440,16 +463,23 @@ class _LineChartState extends State<LineChart>
     if (widget.markerSelectionStrategy != null) {
       final box = context.findRenderObject()! as RenderBox;
       final globalPosition = box.localToGlobal(localPosition);
-      widget.markerSelectionStrategy!.handleHover(
+      final result = widget.markerSelectionStrategy!.handleHover(
         localPosition,
         transform,
         widget.elements,
-        _updateHighlightedData,
       );
       setState(() {
         _hoverPosition = localPosition;
         _globalHoverPosition = globalPosition; // Store the global position
+        _highlightedData = result.$1; // data
+        _highlightedPoints = result.$2; // points
+        _highlightedColors = result.$3; // colors
       });
+      if (result.$1.isNotEmpty) {
+        _overlayController.show();
+      } else {
+        _overlayController.hide();
+      }
     }
   }
 
@@ -457,16 +487,25 @@ class _LineChartState extends State<LineChart>
     if (widget.markerSelectionStrategy != null) {
       final box = context.findRenderObject()! as RenderBox;
       final globalPosition = box.localToGlobal(localPosition);
-      widget.markerSelectionStrategy!.handleTap(
+      final result = widget.markerSelectionStrategy!.handleTap(
         localPosition,
         transform,
         widget.elements,
-        _updateHighlightedData,
       );
       setState(() {
         _hoverPosition = localPosition;
         _globalHoverPosition = globalPosition; // Store the global position
+        _highlightedData = result.$1; // data
+        _highlightedPoints = result.$2; // points
+        _highlightedColors = result.$3; // colors
       });
+      if (result.$1.isNotEmpty) {
+        _overlayController.show();
+      } else {
+        _overlayController.hide();
+      }
+    } else {
+      _clearHighlightedData();
     }
   }
 
@@ -475,15 +514,19 @@ class _LineChartState extends State<LineChart>
     Size tooltipSize,
     Size screenSize,
   ) {
-    var xPosition = globalPosition.dx + 10; // Initial offset to the right
+    var xPosition = widget.padding.left +
+        globalPosition.dx -
+        tooltipSize.width; // Initial offset to the left
     if (xPosition + tooltipSize.width > screenSize.width) {
       // If tooltip exceeds right boundary
       xPosition =
-          globalPosition.dx - tooltipSize.width - 10; // Offset to the left
-    }
-    if (xPosition < 10) {
-      // Ensure tooltip doesn't go beyond the left boundary
-      xPosition = 10;
+          globalPosition.dx - tooltipSize.width - 10; // Offset to the right
+    } else if (xPosition < tooltipSize.width) {
+      // Move to the right if tooltip exceeds left boundary
+      xPosition =
+          widget.padding.left + globalPosition.dx + 10; // Offset to the left
+    } else {
+      xPosition -= 10; // Offset to the left
     }
     return xPosition;
   }
@@ -493,16 +536,19 @@ class _LineChartState extends State<LineChart>
     Size tooltipSize,
     Size screenSize,
   ) {
-    var yPosition = globalPosition.dy -
-        tooltipSize.height -
-        10; // Initial offset above the hover position
-    if (yPosition < 10) {
-      // If tooltip exceeds top boundary
-      yPosition = globalPosition.dy + 10; // Offset below the hover position
-    }
+    var yPosition = widget.padding.top +
+        globalPosition.dy -
+        tooltipSize.height; // Initial offset to the top
     if (yPosition + tooltipSize.height > screenSize.height) {
-      // Ensure tooltip doesn't go beyond the bottom boundary
-      yPosition = screenSize.height - tooltipSize.height - 10;
+      // If tooltip exceeds bottom boundary
+      yPosition =
+          globalPosition.dy - tooltipSize.height - 10; // Offset to the bottom
+    } else if (yPosition < tooltipSize.height) {
+      // Move to the bottom if tooltip exceeds top boundary
+      yPosition =
+          widget.padding.top + globalPosition.dy + 10; // Offset to the top
+    } else {
+      yPosition -= 10; // Offset to the top
     }
     return yPosition;
   }
@@ -510,8 +556,6 @@ class _LineChartState extends State<LineChart>
   @override
   void dispose() {
     _controller.dispose();
-    // TODO?
-    // _overlayController.dispose();
     super.dispose();
   }
 }
@@ -550,14 +594,28 @@ class _LineChartPainter extends CustomPainter {
         hoverPosition,
       );
     }
+
+    // TODO: Make clip mode configurable
+    canvas.clipRect(
+      Rect.fromLTWH(
+        0,
+        0,
+        size.width,
+        size.height,
+      ),
+    );
   }
 
   @override
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
-    return oldDelegate.highlightedPoints != highlightedPoints ||
-        oldDelegate.animation != animation ||
+    return true; //!
+    return oldDelegate.animation != animation ||
         oldDelegate.hoverPosition != hoverPosition ||
-        !listEquals(oldDelegate.elements, elements);
+        !listEquals(oldDelegate.elements, elements) ||
+        !listEquals(oldDelegate.highlightedColors, highlightedColors) ||
+        oldDelegate.transform != transform ||
+        oldDelegate.markerSelectionStrategy != markerSelectionStrategy ||
+        !listEquals(oldDelegate.highlightedPoints, highlightedPoints);
   }
 }
 

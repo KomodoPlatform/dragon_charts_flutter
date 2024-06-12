@@ -6,3 +6,4 @@ export 'src/chart_grid_lines.dart';
 // export 'src/chart_data_transform.dart';
 export 'src/line_chart.dart';
 export 'src/marker_selection_strategies/options.dart';
+export 'src/label_placement.dart';
