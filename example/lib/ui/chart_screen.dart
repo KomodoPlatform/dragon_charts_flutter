@@ -35,7 +35,9 @@ class ChartScreen extends StatelessWidget {
                     reservedExtent: 80,
                     labelBuilder: (value) => value.toStringAsFixed(9)),
               ],
-              markerSelectionStrategy: CartesianSelectionStrategy(),
+              markerSelectionStrategy: CartesianSelectionStrategy(
+                enableHorizontalDrawing: true,
+              ),
               // tooltipBuilder: (context, dataPoints) {
               //   return ChartTooltip(
               //       dataPoints: dataPoints, backgroundColor: Colors);

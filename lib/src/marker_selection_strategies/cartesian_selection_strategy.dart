@@ -6,8 +6,10 @@ import 'package:dragon_charts_flutter/src/marker_selection_strategies/marker_sel
 
 class CartesianSelectionStrategy extends MarkerSelectionStrategy {
   CartesianSelectionStrategy({
-    this.enableVertical = true,
-    this.enableHorizontal = false,
+    this.enableVerticalSelection = true,
+    this.enableHorizontalSelection = false,
+    this.enableVerticalDrawing = true,
+    this.enableHorizontalDrawing = false,
     this.verticalLineColor = const Color.fromARGB(255, 158, 158, 158),
     this.horizontalLineColor = const Color.fromARGB(255, 158, 158, 158),
     this.lineWidth = 1.0,
@@ -17,8 +19,11 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
     this.highlightBorderColor = const Color.fromRGBO(0, 0, 0, 0.87),
     this.highlightBorderWidth = 2.0,
   });
-  final bool enableVertical;
-  final bool enableHorizontal;
+
+  final bool enableVerticalSelection;
+  final bool enableHorizontalSelection;
+  final bool enableVerticalDrawing;
+  final bool enableHorizontalDrawing;
   final Color verticalLineColor;
   final Color horizontalLineColor;
   final double lineWidth;
@@ -44,12 +49,12 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
         for (final point in element.data) {
           final x = transform.transformX(point.x);
           final y = transform.transformY(point.y);
-          if (enableVertical && (localPosition.dx - x).abs() < 5) {
+          if (enableVerticalSelection && (localPosition.dx - x).abs() < 5) {
             highlightedData.add(point);
             highlightedPoints.add(Offset(x, y));
             highlightedColors.add(element.color);
           }
-          if (enableHorizontal && (localPosition.dy - y).abs() < 5) {
+          if (enableHorizontalSelection && (localPosition.dy - y).abs() < 5) {
             highlightedData.add(point);
             highlightedPoints.add(Offset(x, y));
             highlightedColors.add(element.color);
@@ -90,7 +95,7 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
         ..style = PaintingStyle.stroke
         ..strokeWidth = lineWidth;
 
-      if (enableVertical) {
+      if (enableVerticalDrawing) {
         double startY = 0.0;
         while (startY < size.height) {
           canvas.drawLine(
@@ -102,7 +107,7 @@ class CartesianSelectionStrategy extends MarkerSelectionStrategy {
         }
       }
 
-      if (enableHorizontal) {
+      if (enableHorizontalDrawing) {
         linePaint.color = horizontalLineColor;
         double startX = 0.0;
         while (startX < size.width) {
