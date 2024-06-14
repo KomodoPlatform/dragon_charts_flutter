@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:equatable/equatable.dart';
 import 'package:dragon_charts_flutter/dragon_charts_flutter.dart';
 
@@ -10,7 +8,7 @@ class ChartState extends Equatable {
   const ChartState({required this.data1, required this.data2});
 
   factory ChartState.initial() {
-    return ChartState(data1: [], data2: []);
+    return const ChartState(data1: [], data2: []);
   }
 
   ChartState copyWith({List<ChartData>? data1, List<ChartData>? data2}) {

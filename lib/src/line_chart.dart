@@ -66,10 +66,10 @@ class LineChart extends StatefulWidget {
     required this.elements,
     this.tooltipBuilder,
     this.animationDuration = const Duration(milliseconds: 500),
-    this.domainExtent = const ChartExtent(),
+    this.domainExtent = const ChartExtent.tight(),
     this.rangeExtent = const ChartExtent(),
     this.backgroundColor = Colors.black,
-    this.padding = const EdgeInsets.all(30),
+    this.padding = const EdgeInsets.all(32),
     this.markerSelectionStrategy,
     super.key,
   });
@@ -88,6 +88,7 @@ class LineChart extends StatefulWidget {
   /// A builder function to create custom tooltips for data points.
   ///
   /// If not provided, a default tooltip will be used.
+  //TODO! Add an index parameter?
   final Widget Function(BuildContext, List<ChartData>, List<Color>)?
       tooltipBuilder;
 
@@ -608,7 +609,7 @@ class _LineChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
-    return true; //!
+    // return true; //!
     return oldDelegate.animation != animation ||
         oldDelegate.hoverPosition != hoverPosition ||
         !listEquals(oldDelegate.elements, elements) ||

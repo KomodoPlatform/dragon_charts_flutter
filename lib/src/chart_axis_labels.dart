@@ -50,7 +50,7 @@ class ChartAxisLabels extends ChartElement {
   }
 
   EdgeInsets getReservedMargin(Size size, ChartDataTransform transform) {
-    double maxExtent = _calculateMaxLabelExtent(size, transform);
+    final double maxExtent = _calculateMaxLabelExtent(size, transform);
     if (isVertical) {
       return EdgeInsets.only(left: maxExtent + 10);
     } else {

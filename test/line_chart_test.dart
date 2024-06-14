@@ -10,7 +10,6 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: LineChart(
-              domainExtent: const ChartExtent.tight(),
               elements: [
                 ChartGridLines(isVertical: false, count: 5),
                 ChartAxisLabels(
