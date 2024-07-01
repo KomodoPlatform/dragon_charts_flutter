@@ -13,38 +13,56 @@ class ChartScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Custom Line Chart with Animation')),
       body: Padding(
         padding: const EdgeInsets.all(48),
-        child: BlocBuilder<ChartBloc, ChartState>(
-          builder: (context, state) {
-            return LineChart(
-              domainExtent: const ChartExtent.tight(),
-              backgroundColor: Theme.of(context).cardColor,
-              elements: [
-                ChartGridLines(isVertical: false, count: 5),
-                ChartDataSeries(data: state.data1, color: Colors.blue),
-                ChartDataSeries(
-                    data: state.data2,
-                    color: Colors.red,
-                    lineType: LineType.bezier),
-                ChartAxisLabels(
-                    isVertical: false,
-                    count: 5,
-                    labelBuilder: (value) => value.toStringAsFixed(9)),
-                ChartAxisLabels(
-                    isVertical: true,
-                    count: 5,
-                    // reservedExtent: 80,
-                    labelBuilder: (value) => value.toStringAsFixed(9)),
-              ],
-              markerSelectionStrategy: CartesianSelectionStrategy(
-                enableHorizontalDrawing: true,
-                snapToClosest: true,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 80,
+              width: 200,
+              child: SparklineChart(
+                data: [4, 2, 7, 9, 5, 3, 8, -12],
+                positiveLineColor: Colors.green,
+                negativeLineColor: Colors.red,
+                lineThickness: 1,
+                isCurved: true,
               ),
-              // tooltipBuilder: (context, dataPoints) {
-              //   return ChartTooltip(
-              //       dataPoints: dataPoints, backgroundColor: Colors);
-              // },
-            );
-          },
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: BlocBuilder<ChartBloc, ChartState>(
+                builder: (context, state) {
+                  return LineChart(
+                    domainExtent: const ChartExtent.tight(),
+                    backgroundColor: Theme.of(context).cardColor,
+                    elements: [
+                      ChartGridLines(isVertical: false, count: 5),
+                      ChartDataSeries(data: state.data1, color: Colors.blue),
+                      ChartDataSeries(
+                          data: state.data2,
+                          color: Colors.red,
+                          lineType: LineType.bezier),
+                      ChartAxisLabels(
+                          isVertical: false,
+                          count: 5,
+                          labelBuilder: (value) => value.toStringAsFixed(9)),
+                      ChartAxisLabels(
+                          isVertical: true,
+                          count: 5,
+                          // reservedExtent: 80,
+                          labelBuilder: (value) => value.toStringAsFixed(9)),
+                    ],
+                    markerSelectionStrategy: CartesianSelectionStrategy(
+                      enableHorizontalDrawing: true,
+                      snapToClosest: true,
+                    ),
+                    // tooltipBuilder: (context, dataPoints) {
+                    //   return ChartTooltip(
+                    //       dataPoints: dataPoints, backgroundColor: Colors);
+                    // },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
