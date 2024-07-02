@@ -30,3 +30,7 @@
   - Updated references from `GraphExtent` to `ChartExtent`.
   - Improved documentation for chart components and their properties.
   
+## 0.0.3 - 2024-07-01
+
+### Added
+- **Sparkline Chart**: Added support for sparkline charts, allowing users to visualize data trends in a compact format. (`8124e08`)

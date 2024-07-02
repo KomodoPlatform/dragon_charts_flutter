@@ -179,11 +179,12 @@ class _CustomSparklinePainter extends CustomPainter {
         Rect.fromPoints(const Offset(0, 0), Offset(0, size.height)),
       );
 
+    // Draw the filled paths first
     canvas
       ..drawPath(pathAbove, aboveGradientPaint)
       ..drawPath(pathBelow, belowGradientPaint);
 
-    // Line Paints
+    // Line Paint
     final Paint linePaint = Paint()
       ..strokeWidth = lineThickness
       ..style = PaintingStyle.stroke;
