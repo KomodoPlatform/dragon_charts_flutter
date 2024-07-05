@@ -632,7 +632,7 @@ class MeasureSize extends StatefulWidget {
   final SizeCallback onSizeChange;
 
   @override
-  _MeasureSizeState createState() => _MeasureSizeState();
+  State<MeasureSize> createState() => _MeasureSizeState();
 }
 
 class _MeasureSizeState extends State<MeasureSize> {

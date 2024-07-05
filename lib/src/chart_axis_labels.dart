@@ -24,8 +24,7 @@ class ChartAxisLabels extends ChartElement {
             style: const TextStyle(color: Colors.grey, fontSize: 10),
           ),
           textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
+        )..layout();
         if (textPainter.width > maxExtent) {
           maxExtent = textPainter.width;
         }
@@ -39,8 +38,7 @@ class ChartAxisLabels extends ChartElement {
             style: const TextStyle(color: Colors.grey, fontSize: 10),
           ),
           textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
+        )..layout();
         if (textPainter.height > maxExtent) {
           maxExtent = textPainter.height;
         }

@@ -29,7 +29,7 @@ class ChartDataSeries extends ChartElement {
   ) {
     final interpolatedData = <ChartData>[];
     final int minLength = min(data.length, newDataSeries.data.length);
-    final int maxLength = max(data.length, newDataSeries.data.length);
+    // final int maxLength = max(data.length, newDataSeries.data.length);
 
     // Interpolate shared data points
     for (var i = 0; i < minLength; i++) {
@@ -108,8 +108,8 @@ class ChartDataSeries extends ChartElement {
     final path = Path();
     var first = true;
 
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    // canvas.clipRect(rect);
+    // final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    // // canvas.clipRect(rect);
 
     if (lineType == LineType.straight) {
       for (final point in data) {

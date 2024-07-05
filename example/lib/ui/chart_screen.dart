@@ -15,7 +15,7 @@ class ChartScreen extends StatelessWidget {
         padding: const EdgeInsets.all(48),
         child: Column(
           children: [
-            SizedBox(
+            const SizedBox(
               height: 80,
               width: 200,
               child: SparklineChart(

@@ -34,3 +34,8 @@
 
 ### Added
 - **Sparkline Chart**: Added support for sparkline charts, allowing users to visualize data trends in a compact format. (`8124e08`)
+
+## 0.1.0 - 2024-07-05
+
+- **Initial release with support for line charts.**: The first stable release of the library, providing support for line charts. No functional changes from the previous version.
+- **Linter Fixes**: Apply linter fixes. There are no functional changes.

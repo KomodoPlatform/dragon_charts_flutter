@@ -61,8 +61,8 @@ class _CustomSparklinePainter extends CustomPainter {
     final double scaleY = size.height / (maxValue - minValue);
     final double yAvg = size.height - ((average - minValue) * scaleY);
 
-    Path pathAbove = Path();
-    Path pathBelow = Path();
+    final Path pathAbove = Path();
+    final Path pathBelow = Path();
     pathAbove.moveTo(0, yAvg);
     pathBelow.moveTo(0, yAvg);
 
@@ -77,12 +77,13 @@ class _CustomSparklinePainter extends CustomPainter {
       if (data[i] >= average) {
         if (i > 0 && data[i - 1] < average) {
           final xPrev = (i - 1) * dx;
-          final yPrev = size.height - ((data[i - 1] - minValue) * scaleY);
+          // final yPrev = size.height - ((data[i - 1] - minValue) * scaleY);
           final intersectionX =
               xPrev + (dx * (average - data[i - 1]) / (data[i] - data[i - 1]));
 
-          pathBelow.lineTo(intersectionX, yAvg);
-          pathBelow.lineTo(intersectionX, yAvg);
+          pathBelow
+            ..lineTo(intersectionX, yAvg)
+            ..lineTo(intersectionX, yAvg);
           pathAbove.moveTo(intersectionX, yAvg);
           prevPointAbove = Offset(intersectionX, yAvg);
         }
@@ -112,12 +113,13 @@ class _CustomSparklinePainter extends CustomPainter {
       } else {
         if (i > 0 && data[i - 1] >= average) {
           final xPrev = (i - 1) * dx;
-          final yPrev = size.height - ((data[i - 1] - minValue) * scaleY);
+          // final yPrev = size.height - ((data[i - 1] - minValue) * scaleY);
           final intersectionX =
               xPrev + (dx * (average - data[i - 1]) / (data[i] - data[i - 1]));
 
-          pathAbove.lineTo(intersectionX, yAvg);
-          pathAbove.lineTo(intersectionX, yAvg);
+          pathAbove
+            ..lineTo(intersectionX, yAvg)
+            ..lineTo(intersectionX, yAvg);
           pathBelow.moveTo(intersectionX, yAvg);
           prevPointBelow = Offset(intersectionX, yAvg);
         }
@@ -164,7 +166,7 @@ class _CustomSparklinePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(
-        Rect.fromPoints(const Offset(0, 0), Offset(0, size.height)),
+        Rect.fromPoints(Offset.zero, Offset(0, size.height)),
       );
 
     final Paint belowGradientPaint = Paint()
@@ -176,7 +178,7 @@ class _CustomSparklinePainter extends CustomPainter {
         begin: Alignment.bottomCenter,
         end: Alignment.topCenter,
       ).createShader(
-        Rect.fromPoints(const Offset(0, 0), Offset(0, size.height)),
+        Rect.fromPoints(Offset.zero, Offset(0, size.height)),
       );
 
     // Draw the filled paths first
@@ -300,8 +302,14 @@ class _CustomSparklinePainter extends CustomPainter {
         canvas.drawPath(
           Path()
             ..moveTo(x1, y1)
-            ..cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx,
-                controlPoint2.dy, x2, y2),
+            ..cubicTo(
+              controlPoint1.dx,
+              controlPoint1.dy,
+              controlPoint2.dx,
+              controlPoint2.dy,
+              x2,
+              y2,
+            ),
           linePaint,
         );
       } else {
