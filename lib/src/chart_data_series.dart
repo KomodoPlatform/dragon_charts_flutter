@@ -164,4 +164,20 @@ class ChartDataSeries extends ChartElement {
 
     canvas.drawCircle(offset, nodeRadius!, paint);
   }
+
+  ChartDataSeries copyWith({
+    List<ChartData>? data,
+    Color? color,
+    double? strokeWidth,
+    LineType? lineType,
+    double? nodeRadius,
+  }) {
+    return ChartDataSeries(
+      data: data ?? this.data,
+      color: color ?? this.color,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      lineType: lineType ?? this.lineType,
+      nodeRadius: nodeRadius ?? this.nodeRadius,
+    );
+  }
 }

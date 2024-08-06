@@ -31,15 +31,18 @@ class ChartScreen extends StatelessWidget {
               child: BlocBuilder<ChartBloc, ChartState>(
                 builder: (context, state) {
                   return LineChart(
-                    domainExtent: const ChartExtent.tight(),
+                    domainExtent:
+                        const ChartExtent.withBounds(min: 4.1, max: 8.2),
+                    // domainExtent: ChartExtent.tight(),
                     backgroundColor: Theme.of(context).cardColor,
                     elements: [
                       ChartGridLines(isVertical: false, count: 5),
                       ChartDataSeries(data: state.data1, color: Colors.blue),
                       ChartDataSeries(
-                          data: state.data2,
-                          color: Colors.red,
-                          lineType: LineType.bezier),
+                        data: state.data2,
+                        color: Colors.red,
+                        lineType: LineType.bezier,
+                      ),
                       ChartAxisLabels(
                           isVertical: false,
                           count: 5,

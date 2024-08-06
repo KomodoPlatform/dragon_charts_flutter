@@ -20,6 +20,8 @@ class ChartDataTransform {
 
   double transformX(double x) => (x - minX) / (maxX - minX) * width;
 
+  double reverseTransformX(double x) => minX + (x / width) * (maxX - minX);
+
   double transformY(double y) => height - (y - minY) / (maxY - minY) * height;
 
   double invertX(double dx) => minX + (dx / width) * (maxX - minX);

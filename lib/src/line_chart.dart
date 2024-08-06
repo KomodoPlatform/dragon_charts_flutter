@@ -7,16 +7,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 class ChartExtent {
-  const ChartExtent({
+  @Deprecated(
+    'Use the named constructors instead. '
+    'This constructor will be removed in the next release.',
+  )
+  ChartExtent({
     this.auto = true,
-    this.padding = 0.1,
+    double padding = 0.1,
     this.min,
     this.max,
-  });
+  }) : paddingPortion = padding;
 
-  const ChartExtent.tight() : this(auto: true, padding: 0);
+  const ChartExtent.withBounds({
+    required this.min,
+    required this.max,
+  })  : auto = false,
+        paddingPortion = 0;
+
+  const ChartExtent.tight({this.paddingPortion = 0})
+      : auto = true,
+        min = null,
+        max = null;
+
   final bool auto;
-  final double padding;
+  final double paddingPortion;
   final double? min;
   final double? max;
 }
@@ -67,7 +81,7 @@ class LineChart extends StatefulWidget {
     this.tooltipBuilder,
     this.animationDuration = const Duration(milliseconds: 500),
     this.domainExtent = const ChartExtent.tight(),
-    this.rangeExtent = const ChartExtent(),
+    this.rangeExtent = const ChartExtent.tight(paddingPortion: 0.1),
     this.backgroundColor = Colors.black,
     this.padding = const EdgeInsets.all(32),
     this.markerSelectionStrategy,
@@ -88,7 +102,6 @@ class LineChart extends StatefulWidget {
   /// A builder function to create custom tooltips for data points.
   ///
   /// If not provided, a default tooltip will be used.
-  //TODO! Add an index parameter?
   final Widget Function(BuildContext, List<ChartData>, List<Color>)?
       tooltipBuilder;
 
@@ -157,27 +170,21 @@ class _LineChartState extends State<LineChart>
 
   @override
   void initState() {
-    // assert(
-    //   (widget.tooltipBuilder == null) ==
-    //       (widget.markerSelectionStrategy == null),
-    //   'If either tooltipBuilder or markerSelectionStrategy is provided, '
-    //   'both must be provided.',
-    // );
-
     super.initState();
     _controller =
         AnimationController(vsync: this, duration: widget.animationDuration);
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          oldElements = List.from(widget.elements);
-        });
-      }
-    });
+    _controller
+      ..addListener(() {
+        setState(() {});
+      })
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          setState(() {
+            oldElements = List.from(widget.elements);
+          });
+        }
+      });
     oldElements = List.from(widget.elements);
     currentElements = List.from(widget.elements);
     _updateDomainRange();
@@ -245,23 +252,21 @@ class _LineChartState extends State<LineChart>
 
     if (widget.domainExtent.auto) {
       final domainPaddingValue =
-          (newMaxX - newMinX) * widget.domainExtent.padding;
+          (newMaxX - newMinX) * widget.domainExtent.paddingPortion;
       newMinX -= domainPaddingValue;
       newMaxX += domainPaddingValue;
-    } else {
-      newMinX = widget.domainExtent.min ?? newMinX;
-      newMaxX = widget.domainExtent.max ?? newMaxX;
     }
+    newMinX = widget.domainExtent.min ?? newMinX;
+    newMaxX = widget.domainExtent.max ?? newMaxX;
 
     if (widget.rangeExtent.auto) {
       final rangePaddingValue =
-          (newMaxY - newMinY) * widget.rangeExtent.padding;
+          (newMaxY - newMinY) * widget.rangeExtent.paddingPortion;
       newMinY -= rangePaddingValue;
       newMaxY += rangePaddingValue;
-    } else {
-      newMinY = widget.rangeExtent.min ?? newMinY;
-      newMaxY = widget.rangeExtent.max ?? newMaxY;
     }
+    newMinY = widget.rangeExtent.min ?? newMinY;
+    newMaxY = widget.rangeExtent.max ?? newMaxY;
 
     minXAnimation =
         Tween<double>(begin: minX, end: newMinX).animate(_controller);
@@ -581,22 +586,17 @@ class _LineChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final element in elements) {
+    final dataElements = elements.whereType<ChartDataSeries>();
+    final nonDataElements =
+        elements.where((element) => element is! ChartDataSeries);
+
+    // Paint non-data elements (e.g., grid lines, axis labels)
+    for (final element in nonDataElements) {
       element.paint(canvas, size, transform, animation);
     }
 
-    if (markerSelectionStrategy != null) {
-      markerSelectionStrategy!.paint(
-        canvas,
-        size,
-        transform,
-        highlightedPoints,
-        highlightedColors,
-        hoverPosition,
-      );
-    }
-
-    // TODO: Make clip mode configurable
+    // Save the canvas state before applying the clip
+    canvas.save();
     canvas.clipRect(
       Rect.fromLTWH(
         0,
@@ -605,11 +605,79 @@ class _LineChartPainter extends CustomPainter {
         size.height,
       ),
     );
+
+    // Paint data elements (e.g., data series) within the clipped area
+    for (final element in dataElements) {
+      final visibleData = _getVisibleData(element.data);
+      element
+          .copyWith(data: visibleData)
+          .paint(canvas, size, transform, animation);
+    }
+
+    // Restore the canvas state to remove the clip
+    canvas.restore();
+
+    // Filter highlighted points to only include those within the visible domain
+    final filteredHighlightedPoints = _getFilteredHighlightedPoints();
+
+    // Paint markers outside the clipped area
+    if (markerSelectionStrategy != null) {
+      markerSelectionStrategy!.paint(
+        canvas,
+        size,
+        transform,
+        filteredHighlightedPoints,
+        highlightedColors,
+        hoverPosition,
+      );
+    }
+  }
+
+  List<Offset> _getFilteredHighlightedPoints() {
+    if (highlightedPoints == null) return [];
+
+    final minX = transform.minX;
+    final maxX = transform.maxX;
+
+    return highlightedPoints!.where((point) {
+      final xValue = transform.reverseTransformX(point.dx);
+      return xValue >= minX && xValue <= maxX;
+    }).toList();
+  }
+
+  List<ChartData> _getVisibleData(List<ChartData> data) {
+    final visibleData = <ChartData>[];
+    ChartData? firstOutOfDomain;
+    ChartData? lastOutOfDomain;
+    final minX = transform.minX;
+    final maxX = transform.maxX;
+
+    for (final dataPoint in data) {
+      final xValue = dataPoint.x;
+      if (xValue >= minX && xValue <= maxX) {
+        visibleData.add(dataPoint);
+      } else if (xValue < minX &&
+          (firstOutOfDomain == null || xValue > firstOutOfDomain.x)) {
+        firstOutOfDomain = dataPoint;
+      } else if (xValue > maxX &&
+          (lastOutOfDomain == null || xValue < lastOutOfDomain.x)) {
+        lastOutOfDomain = dataPoint;
+      }
+    }
+
+    if (firstOutOfDomain != null) {
+      visibleData.insert(0, firstOutOfDomain);
+    }
+
+    if (lastOutOfDomain != null) {
+      visibleData.add(lastOutOfDomain);
+    }
+
+    return visibleData;
   }
 
   @override
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
-    // return true; //!
     return oldDelegate.animation != animation ||
         oldDelegate.hoverPosition != hoverPosition ||
         !listEquals(oldDelegate.elements, elements) ||
