@@ -1,4 +1,16 @@
-# Dragon Charts Flutter
+# 🚚 Repository Moved
+
+> **⚠️ This repository has been migrated to the Komodo DeFi SDK Flutter monorepo.**
+>
+> 📍 **New location:** [packages/dragon_charts_flutter](https://github.com/KomodoPlatform/komodo-defi-sdk-flutter/tree/main/packages/dragon_charts_flutter)
+>
+> 🔄 **Active development** continues in the monorepo. Please update your forks, bookmarks, and links.
+>
+> 💡 **For issues, PRs, and contributions**, please use the [main monorepo](https://github.com/KomodoPlatform/komodo-defi-sdk-flutter).
+
+---
+
+# Dragon Charts Flutter (Archived)
 
 Dragon Charts Flutter is a lightweight, declarative, and highly customizable charting library for Flutter. It provides a simple yet powerful way to create various types of charts, with a focus on ease of use and flexibility.
 
@@ -20,7 +32,6 @@ Run this command:
 ```bash
 flutter pub add dragon_charts_flutter
 ```
-
 
 ### From GitHub
 
